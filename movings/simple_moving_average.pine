@@ -1,0 +1,17 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © hidapple
+
+//@version=6
+indicator("Simple Moving Average", shorttitle = "SMA", overlay = true)
+
+sma10 = ta.sma(close, 10)
+sma21 = ta.sma(close, 21)
+sma50 = ta.sma(close, 50)
+// sma130 = ta.sma(close, 130)
+sma200 = ta.sma(close, 200)
+
+plot(sma10, title="SMA 10", color=color.rgb(0, 255, 255), linewidth=1)
+plot(sma21, title="SMA 21", color=color.rgb(255, 192, 203), linewidth=1)
+plot(sma50, title="SMA 50", color=color.blue, linewidth=1)
+// plot(sma130, title="SMA 130", color=color.yellow, linewidth=1)
+plot(sma200, title="SMA 200", color=color.red, linewidth=1)
