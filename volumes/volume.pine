@@ -1,0 +1,31 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © hidapple
+
+//@version=6
+indicator("Volume with Dynamic Colors", shorttitle="Vol", overlay=false, format=format.volume)
+
+current_tf = timeframe.period
+is_daily = current_tf == "D" or current_tf == "1D"
+is_weekly = current_tf == "W" or current_tf == "1W"
+
+var color volume_color = na
+if is_daily
+    avg_vol_5d = ta.sma(volume[1], 5)
+    if volume > avg_vol_5d * 2.0
+        volume_color := color.new(color.green, 40)
+    else if volume < avg_vol_5d * 0.5
+        volume_color := color.new(color.red, 40)
+    else
+        volume_color := color.new(color.gray, 60)
+else if is_weekly
+    avg_vol_4w = ta.sma(volume[1], 4)
+    if volume > avg_vol_4w * 2.0
+        volume_color := color.new(color.green, 40)
+    else if volume < avg_vol_4w * 0.5
+        volume_color := color.new(color.red, 40)
+    else
+        volume_color := color.new(color.gray, 60)
+else
+    volume_color := close >= open ? color.new(color.green, 40) : color.new(color.red, 40)
+
+plot(volume, style=plot.style_columns, color=volume_color, title="Volume")
