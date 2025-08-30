@@ -13,9 +13,9 @@ sma200 = ta.sma(close, 200)
 
 // For Weekly
 isWeekly = timeframe.period == "1W"
-plot(isWeekly ? sma30 : na, title="SMA 30", color=color.orange, linewidth=2)
-// For Others
-plot(isWeekly ? na : sma10, title="SMA 10", color=color.rgb(0, 255, 255), linewidth=1)
-plot(isWeekly ? na : sma21, title="SMA 21", color=color.rgb(255, 192, 203), linewidth=1)
-plot(isWeekly ? na : sma50, title="SMA 50", color=color.blue, linewidth=1)
-plot(isWeekly ? na : sma200, title="SMA 200", color=color.red, linewidth=1)
+plot(isWeekly ? sma30 : na, title="SMA 30", color=color.rgb(255, 140, 0), linewidth=1)
+// For Others (cool to warm gradient)
+plot(isWeekly ? na : sma10, title="SMA 10", color=color.rgb(0, 191, 255), linewidth=1)
+plot(isWeekly ? na : sma21, title="SMA 21", color=color.rgb(50, 205, 50), linewidth=1)
+plot(isWeekly ? na : sma50, title="SMA 50", color=color.rgb(255, 215, 0), linewidth=1)
+plot(isWeekly ? na : sma200, title="SMA 200", color=color.rgb(220, 20, 60), linewidth=1)
