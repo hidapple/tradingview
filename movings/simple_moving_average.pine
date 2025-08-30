@@ -4,17 +4,18 @@
 //@version=6
 indicator("Simple Moving Average", shorttitle = "SMA", overlay = true)
 
-// When the timeframe is weekly, plot the 30-week SMA otherwise, plot the 10, 21, 50, and 200 SMAs
-if timeframe.period == "W"
-    sma30w = ta.sma(close, 30)
-    plot(sma30w, title="SMA 30W", color=color.orange, linewidth=2)
-else
-    sma10 = ta.sma(close, 10)
-    sma21 = ta.sma(close, 21)
-    sma50 = ta.sma(close, 50)
-    sma200 = ta.sma(close, 200)
-    
-    plot(sma10, title="SMA 10", color=color.rgb(0, 255, 255), linewidth=1)
-    plot(sma21, title="SMA 21", color=color.rgb(255, 192, 203), linewidth=1)
-    plot(sma50, title="SMA 50", color=color.blue, linewidth=1)
-    plot(sma200, title="SMA 200", color=color.red, linewidth=1)
+sma10 = ta.sma(close, 10)
+sma21 = ta.sma(close, 21)
+sma30 = ta.sma(close, 30)
+sma50 = ta.sma(close, 50)
+sma200 = ta.sma(close, 200)
+
+
+// For Weekly
+isWeekly = timeframe.period == "1W"
+plot(isWeekly ? sma30 : na, title="SMA 30", color=color.orange, linewidth=2)
+// For Others
+plot(isWeekly ? na : sma10, title="SMA 10", color=color.rgb(0, 255, 255), linewidth=1)
+plot(isWeekly ? na : sma21, title="SMA 21", color=color.rgb(255, 192, 203), linewidth=1)
+plot(isWeekly ? na : sma50, title="SMA 50", color=color.blue, linewidth=1)
+plot(isWeekly ? na : sma200, title="SMA 200", color=color.red, linewidth=1)
