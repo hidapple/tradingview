@@ -14,7 +14,7 @@ var color volume_color = na
 if is_daily
     avg_vol_5d = ta.sma(volume[1], 5)
     if volume > avg_vol_5d * 2.0
-        volume_color := is_bullish_candle ? color.new(color.green, 0) : color.new(color.red, 0)
+        volume_color := is_bullish_candle ? color.new(color.green, 20) : color.new(color.red, 20)
     else if volume < avg_vol_5d * 0.5
         volume_color := is_bullish_candle ? color.new(color.green, 70) : color.new(color.red, 70)
     else
@@ -22,7 +22,7 @@ if is_daily
 else if is_weekly
     avg_vol_4w = ta.sma(volume[1], 4)
     if volume > avg_vol_4w * 2.0
-        volume_color := is_bullish_candle ? color.new(color.green, 0) : color.new(color.red, 0)
+        volume_color := is_bullish_candle ? color.new(color.green, 20) : color.new(color.red, 20)
     else if volume < avg_vol_4w * 0.5
         volume_color := is_bullish_candle ? color.new(color.green, 70) : color.new(color.red, 70)
     else
