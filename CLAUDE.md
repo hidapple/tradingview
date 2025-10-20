@@ -18,6 +18,7 @@ Pine Script files are text-based indicators that run on TradingView's platform. 
 - Use `indicator()` function to define script metadata
 - Technical analysis functions are available under `ta.` namespace (e.g., `ta.sma()` for simple moving average)
 - Plotting functions use `plot()` with customizable colors and line styles
+- **All comments must be written in English only** - never use Japanese or other languages in code comments
 
 ## Code Structure Patterns
 

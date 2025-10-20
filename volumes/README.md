@@ -1,16 +1,23 @@
 # Volumes Indicator
 
 ## `volume.pine`
+
+Displays volume bars with colors based on both volume trend and candle direction.
+
 ### Daily time frame
-- Green: Volume is more than double the average for the past 5 days
-- Red: Volume is less than 0.5 times the average for the past 5 days
-- Gray: Other
+- **Solid green**: Volume > 2x (5-day average) with bullish candle
+- **Solid red**: Volume > 2x (5-day average) with bearish candle
+- **Transparent green**: Volume < 0.5x (5-day average) with bullish candle
+- **Transparent red**: Volume < 0.5x (5-day average) with bearish candle
+- **Gray**: Volume in normal range
 
 ### Weekly time frame
-- Green: Volume is more than double the average for the past 4 weeks
-- Red: Volume is less than 0.5 times the average for the past 4 weeks
-- Gray: Other
+- **Solid green**: Volume > 2x (4-week average) with bullish candle
+- **Solid red**: Volume > 2x (4-week average) with bearish candle
+- **Transparent green**: Volume < 0.5x (4-week average) with bullish candle
+- **Transparent red**: Volume < 0.5x (4-week average) with bearish candle
+- **Gray**: Volume in normal range
 
-### Other
-- Green: Bullish candle (close ≥ open)
-- Red: Bearish candle (close < open)
+### Other timeframes
+- **Green**: Bullish candle (close ≥ open)
+- **Red**: Bearish candle (close < open)
