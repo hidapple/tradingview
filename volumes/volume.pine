@@ -11,8 +11,11 @@ is_weekly = current_tf == "W" or current_tf == "1W"
 is_bullish_candle = close >= open
 
 var color volume_color = na
+var float volume_ma = na
+
 if is_daily
     avg_vol_5d = ta.sma(volume[1], 5)
+    volume_ma := ta.sma(volume, 50)  // 50-day MA for daily
     if volume > avg_vol_5d * 2.0
         volume_color := is_bullish_candle ? color.new(color.green, 20) : color.new(color.red, 20)
     else if volume < avg_vol_5d * 0.5
@@ -21,6 +24,7 @@ if is_daily
         volume_color := color.new(color.gray, 60)
 else if is_weekly
     avg_vol_4w = ta.sma(volume[1], 4)
+    volume_ma := ta.sma(volume, 10)  // 10-week MA for weekly
     if volume > avg_vol_4w * 2.0
         volume_color := is_bullish_candle ? color.new(color.green, 20) : color.new(color.red, 20)
     else if volume < avg_vol_4w * 0.5
@@ -29,10 +33,7 @@ else if is_weekly
         volume_color := color.new(color.gray, 60)
 else
     volume_color := close >= open ? color.new(color.green, 40) : color.new(color.red, 40)
+    volume_ma := na
 
 plot(volume, style=plot.style_columns, color=volume_color, title="Volume")
-
-// Volume Moving Averages
-if is_weekly
-    ma10w = ta.sma(volume, 10)
-    plot(ma10w, color=color.rgb(255, 215, 0), linewidth=2, title="10W MA")
+plot(volume_ma, color=color.rgb(255, 215, 0), linewidth=1, title="Volume MA")
