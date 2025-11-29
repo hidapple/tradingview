@@ -39,3 +39,7 @@ Moving average indicators use consistent color coding:
 ## Testing and Deployment
 
 Pine Script indicators are tested and deployed directly within the TradingView platform. There are no traditional build, lint, or test commands for this repository type.
+
+## Documentation Requirements
+
+**IMPORTANT**: Each indicator directory has its own README.md file that documents the indicator's functionality and visual characteristics. When you make any changes to an indicator's logic, colors, or calculations, you MUST update the corresponding README.md file in the same directory to reflect these changes. This ensures documentation stays synchronized with the actual implementation.

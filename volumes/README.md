@@ -17,6 +17,7 @@ Displays volume bars with colors based on both volume trend and candle direction
 - **Transparent green**: Volume < 0.5x (4-week average) with bullish candle
 - **Transparent red**: Volume < 0.5x (4-week average) with bearish candle
 - **Gray**: Volume in normal range
+- **Blue line**: 10-week moving average of volume
 
 ### Other timeframes
 - **Green**: Bullish candle (close ≥ open)

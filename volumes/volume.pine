@@ -31,3 +31,8 @@ else
     volume_color := close >= open ? color.new(color.green, 40) : color.new(color.red, 40)
 
 plot(volume, style=plot.style_columns, color=volume_color, title="Volume")
+
+// Volume Moving Averages
+if is_weekly
+    ma10w = ta.sma(volume, 10)
+    plot(ma10w, color=color.blue, linewidth=2, title="10W MA")
