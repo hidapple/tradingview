@@ -13,6 +13,7 @@ sma200 = ta.sma(close, 200)
 
 // For Weekly
 isWeekly = timeframe.period == "1W"
+plot(isWeekly ? sma10 : na, title="SMA 10", color=color.rgb(255, 215, 0), linewidth=1)
 plot(isWeekly ? sma30 : na, title="SMA 30", color=color.rgb(255, 140, 0), linewidth=1)
 // For Others
 plot(isWeekly ? na : sma10, title="SMA 10", color=color.rgb(0, 191, 255), linewidth=1)

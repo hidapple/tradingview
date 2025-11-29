@@ -3,6 +3,7 @@
 ## `simple_moving_average.pine`
 
 ### Weekly time frame
+- Gold: 10-period Simple Moving Average (represents ~10 weeks of price action)
 - Orange: 30-period Simple Moving Average (represents ~7 months of price action)
 
 ### Other time frames

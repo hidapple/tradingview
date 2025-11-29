@@ -35,4 +35,4 @@ plot(volume, style=plot.style_columns, color=volume_color, title="Volume")
 // Volume Moving Averages
 if is_weekly
     ma10w = ta.sma(volume, 10)
-    plot(ma10w, color=color.blue, linewidth=2, title="10W MA")
+    plot(ma10w, color=color.rgb(255, 215, 0), linewidth=2, title="10W MA")
