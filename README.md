@@ -1,8 +1,14 @@
 # TradingView Pine Script Indicators
 
-A collection of technical analysis indicators written in Pine Script for TradingView.
+A collection of technical analysis indicators and screeners written in Pine Script for TradingView.
 
-## Indicators
+## Directory Structure
+
+- `indicators/` - Technical analysis indicators
+  - `movings/` - Moving average indicators (SMA, etc.)
+  - `relative_strength/` - Relative strength indicators
+  - `volumes/` - Volume-based indicators
+- `screeners/` - Market screening scripts
 
 ## Usage
 

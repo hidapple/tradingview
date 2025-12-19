@@ -4,11 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a TradingView Pine Script repository for technical analysis indicators. Pine Script is TradingView's domain-specific language for creating custom technical indicators, strategies, and studies.
+This is a TradingView Pine Script repository for technical analysis indicators and screeners. Pine Script is TradingView's domain-specific language for creating custom technical indicators, strategies, and studies.
 
 ## Architecture
 
-- `movings/` - Contains moving average indicators and related technical analysis scripts
+- `indicators/` - Contains all technical analysis indicators
+  - `movings/` - Moving average indicators and related technical analysis scripts
+  - `relative_strength/` - Relative strength indicators
+  - `volumes/` - Volume-based indicators
+- `screeners/` - Contains market screening scripts for filtering stocks/assets
 - Pine Script files use `.pine` extension and follow Pine Script v6 syntax
 
 ## Pine Script Development
@@ -42,4 +46,4 @@ Pine Script indicators are tested and deployed directly within the TradingView p
 
 ## Documentation Requirements
 
-**IMPORTANT**: Each indicator directory has its own README.md file that documents the indicator's functionality and visual characteristics. When you make any changes to an indicator's logic, colors, or calculations, you MUST update the corresponding README.md file in the same directory to reflect these changes. This ensures documentation stays synchronized with the actual implementation.
+**IMPORTANT**: Each indicator/screener directory has its own README.md file that documents the functionality and visual characteristics. When you make any changes to logic, colors, or calculations, you MUST update the corresponding README.md file in the same directory to reflect these changes. This ensures documentation stays synchronized with the actual implementation.
