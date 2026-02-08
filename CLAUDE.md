@@ -47,3 +47,53 @@ Pine Script indicators are tested and deployed directly within the TradingView p
 ## Documentation Requirements
 
 **IMPORTANT**: Each indicator/screener directory has its own README.md file that documents the functionality and visual characteristics. When you make any changes to logic, colors, or calculations, you MUST update the corresponding README.md file in the same directory to reflect these changes. This ensures documentation stays synchronized with the actual implementation.
+
+## Pine Script Screener Development
+
+Pine Script screeners are different from regular indicators and have specific requirements:
+
+### Key Differences from Regular Indicators
+- **No input() functions allowed** - Use fixed values only
+- **Must have plot() or alertcondition()** - At least one is required
+- **Maximum 5 request.* calls** - Limited external data requests
+- **Works on watchlists** - Scans multiple symbols at once, not just single charts
+
+### Screener Structure Pattern
+```pine
+//@version=6
+indicator("Screener Name", overlay=false)  // Usually overlay=false for screeners
+
+// Fixed parameters (no inputs)
+period = 20
+
+// Calculation logic
+value = ta.sma(close, period)
+condition = close > value
+
+// Plots - become screener columns (visible, sortable, filterable by value)
+plot(value, title="Column Name")  // Shows as numeric column: "Column Name: 123.45"
+
+// Alert conditions - become filter options (not visible as columns)
+alertcondition(condition, title="Filter Name")  // Shows as: "Filter Name = True/False"
+```
+
+### plot vs alertcondition Usage
+- **plot()**: Creates visible columns with numeric values
+  - Users can see the actual values
+  - Can filter with operators (>, <, =, etc.)
+  - Can sort by these values
+  
+- **alertcondition()**: Creates filter-only conditions  
+  - No column displayed
+  - Only True/False filtering
+  - Good for complex multi-condition logic
+
+### Example Implementation
+```pine
+// Numeric values to display and filter
+plot(performance, title="Performance %")  // User sees: "Performance %: 15.3"
+
+// Complex condition for filtering only
+is_strong = perf_1m > 5 and perf_3m > 10
+alertcondition(is_strong, title="Strong Momentum")  // User filters: "Strong Momentum = True"
+```

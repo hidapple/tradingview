@@ -3,20 +3,15 @@
 ## `rs_sp500.pine`
 
 ### Calculation Method
-- Raw relative strength: Current symbol close price / SPY close price
-- Baseline: 100-day simple moving average of raw relative strength
-- Normalized RS: ((Raw RS / Baseline) - 1) × 100
+- Relative strength ratio: Current symbol close / SPY close
+- The raw ratio is plotted directly (no normalization or smoothing)
 
-### Display Lines
-- White: Current normalized relative strength (%)
-- Cyan: 10-day SMA of normalized RS (short-term trend)
-- Pink: 21-day SMA of normalized RS (medium-term trend)
-- Blue: 50-day SMA of normalized RS (long-term trend)
-- Gray dashed: 0% neutral line (baseline level)
+### Display
+- Green: Ratio is rising (outperforming S&P 500)
+- Red: Ratio is falling (underperforming S&P 500)
 
 ### Interpretation
-- Above 0%: Outperforming S&P 500 compared to 100-day average
-- Below 0%: Underperforming S&P 500 compared to 100-day average
-- Moving average crossovers: Trend change signals
-- Distance from 0%: Strength of relative performance
+- Line trending up: Stock is outperforming S&P 500
+- Line trending down: Stock is underperforming S&P 500
+- The absolute value represents the price ratio between the stock and SPY
 

@@ -7,25 +7,11 @@ indicator("Relative Strength vs S&P500", shorttitle = "RS vs SPY", overlay = fal
 // Get SPY (S&P500 ETF) close price
 spy_close = request.security("SPY", timeframe.period, close)
 
-// Calculate relative strength (current symbol / SPY)
-rs_raw = close / spy_close
+// Calculate relative strength ratio (stock / SPY)
+rs = close / spy_close
 
-// Normalize to percentage change from 100-day SMA baseline
-rs_baseline = ta.sma(rs_raw, 100)
-rs = (rs_raw / rs_baseline - 1) * 100
-
-// Calculate moving averages of relative strength
-rs_sma10 = ta.sma(rs, 10)
-rs_sma21 = ta.sma(rs, 21)
-rs_sma50 = ta.sma(rs, 50)
+// Color by slope: green = outperforming, red = underperforming
+rs_color = rs > rs[1] ? color.green : color.red
 
 // Plot relative strength line
-plot(rs, title="RS %", color=color.white, linewidth=2)
-
-// Plot moving averages
-plot(rs_sma10, title="RS SMA 10", color=color.rgb(0, 255, 255), linewidth=1)
-plot(rs_sma21, title="RS SMA 21", color=color.rgb(255, 192, 203), linewidth=1)
-plot(rs_sma50, title="RS SMA 50", color=color.blue, linewidth=1)
-
-// Plot horizontal line at 0 (neutral level)
-hline(0, title="Neutral Line", color=color.gray, linestyle=hline.style_dashed, linewidth=1)
+plot(rs, title="RS", color=rs_color, linewidth=2)

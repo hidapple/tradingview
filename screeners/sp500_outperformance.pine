@@ -1,0 +1,58 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © hidapple
+
+//@version=6
+indicator("SP500 Outperformance Screener", shorttitle="SP500 Outperform", overlay=false)
+
+// Fixed periods for screener (no user inputs for screener compatibility)
+period_4w = 4
+period_13w = 13
+period_26w = 26
+period_52w = 52
+
+// Get SP500 (SPY) data
+spy = request.security("SPY", timeframe.period, close)
+
+// Calculate performance for stock
+calc_performance(src, period) =>
+    if period <= 0 or na(src[period])
+        na
+    else
+        ((src - src[period]) / src[period]) * 100
+
+// Calculate performances for different periods
+stock_perf_4w = calc_performance(close, period_4w)
+stock_perf_13w = calc_performance(close, period_13w)
+stock_perf_26w = calc_performance(close, period_26w)
+stock_perf_52w = calc_performance(close, period_52w)
+
+// Calculate SP500 performances
+spy_perf_4w = calc_performance(spy, period_4w)
+spy_perf_13w = calc_performance(spy, period_13w)
+spy_perf_26w = calc_performance(spy, period_26w)
+spy_perf_52w = calc_performance(spy, period_52w)
+
+// Calculate outperformance
+outperf_4w = stock_perf_4w - spy_perf_4w
+outperf_13w = stock_perf_13w - spy_perf_13w
+outperf_26w = stock_perf_26w - spy_perf_26w
+outperf_52w = stock_perf_52w - spy_perf_52w
+
+// Screening conditions
+all_outperforming = outperf_4w > 0 and outperf_13w > 0 and outperf_26w > 0 and outperf_52w > 0
+strong_outperform = outperf_13w > 5 and outperf_52w > 10
+
+// Plot values for screener columns
+plot(outperf_4w, title="4W Outperf %", color=outperf_4w > 0 ? color.green : color.red)
+plot(outperf_13w, title="13W Outperf %", color=outperf_13w > 0 ? color.green : color.red)
+plot(outperf_26w, title="26W Outperf %", color=outperf_26w > 0 ? color.green : color.red)
+plot(outperf_52w, title="52W Outperf %", color=outperf_52w > 0 ? color.green : color.red)
+plot(stock_perf_52w, title="52W Stock %", color=stock_perf_52w > 0 ? color.green : color.red)
+
+// Alert conditions for screening
+alertcondition(all_outperforming, title="All Periods Outperforming", 
+               message="Outperforming SP500 in all periods")
+alertcondition(strong_outperform, title="Strong Outperformance", 
+               message="13W > 5% and 52W > 10% outperformance")
+alertcondition(outperf_52w > 20, title="52W Outperf > 20%", 
+               message="52-week outperformance exceeds 20%")
