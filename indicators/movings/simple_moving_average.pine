@@ -20,3 +20,24 @@ plot(isWeekly ? na : sma10, title="SMA 10", color=color.rgb(0, 191, 255), linewi
 plot(isWeekly ? na : sma21, title="SMA 21", color=color.rgb(50, 205, 50), linewidth=1)
 plot(isWeekly ? na : sma50, title="SMA 50", color=color.rgb(255, 215, 0), linewidth=1)
 plot(isWeekly ? na : sma200, title="SMA 200", color=color.rgb(220, 20, 60), linewidth=1)
+
+// 52-week High/Low labels
+lookback = isWeekly ? 52 : timeframe.ismonthly ? 12 : 252
+high52w = ta.highest(high, lookback)
+low52w = ta.lowest(low, lookback)
+
+isNew52wHigh = high == high52w and (na(high52w[1]) or high > high52w[1])
+isNew52wLow = low == low52w and (na(low52w[1]) or low < low52w[1])
+
+var label highLabel = na
+var label lowLabel = na
+highOffset = ta.atr(14) * 0.3
+lowOffset = ta.atr(14) * 0.1
+
+if isNew52wHigh
+    label.delete(highLabel)
+    highLabel := label.new(bar_index, high + highOffset, str.tostring(high, format.mintick), style=label.style_none, textcolor=color.rgb(0, 155, 0), size=size.small)
+
+if isNew52wLow
+    label.delete(lowLabel)
+    lowLabel := label.new(bar_index, low - lowOffset, str.tostring(low, format.mintick), style=label.style_none, textcolor=color.rgb(255, 82, 82), size=size.small)
