@@ -2,29 +2,42 @@
 
 Market screening scripts for filtering stocks and assets based on specific criteria.
 
-## `sp500_outperformance.pine`
+## `minervini_trend_template.pine`
 
-Pine Script screener for identifying stocks outperforming the S&P 500 index.
+Pine Script screener based on Mark Minervini's Trend Template from "Trade Like a Stock Market Wizard". Identifies stocks in a confirmed Stage 2 uptrend by checking 8 criteria.
 
-### Features
+### The 8 Conditions
 
-- Compares stock performance against SPY (S&P 500 ETF) over multiple periods
-- Calculates outperformance for 4, 13, 26, and 52-week periods
-- Provides multiple plot columns for sorting and filtering
+1. Price > 150-day SMA
+2. Price > 200-day SMA
+3. 150-day SMA > 200-day SMA
+4. 200-day SMA trending up (vs 20 trading days ago)
+5. 50-day SMA > both 150-day and 200-day SMA
+6. Price > 50-day SMA
+7. Price is at least 25% above 52-week low
+8. Price is within 25% of 52-week high
 
 ### Screener Columns (Plots)
 
-- **4W Outperf %**: 4-week outperformance vs SPY
-- **13W Outperf %**: 13-week (quarterly) outperformance vs SPY  
-- **26W Outperf %**: 26-week (half-year) outperformance vs SPY
-- **52W Outperf %**: 52-week (annual) outperformance vs SPY
-- **52W Stock %**: Stock's absolute 52-week performance
+- **TT Score**: Number of conditions met (0-8). Green=8, Orange=6-7, Red=<6
+
+### Screener Columns (Plots) - Individual Conditions
+
+Each condition is plotted as a numeric value (%) so you can sort and filter by actual values:
+
+- **1: Price vs 150 SMA %**: Distance from 150-day SMA (positive = above)
+- **2: Price vs 200 SMA %**: Distance from 200-day SMA (positive = above)
+- **3: 150 vs 200 SMA %**: Gap between 150-day and 200-day SMA (positive = 150 above)
+- **4: 200 SMA 1M Chg %**: 200-day SMA change over 20 trading days (positive = trending up)
+- **5: 50 vs 150 SMA %**: Gap between 50-day and 150-day SMA (positive = 50 above)
+- **6: Price vs 50 SMA %**: Distance from 50-day SMA (positive = above)
+- **7: % Above 52W Low**: Distance above 52-week low (threshold: 25%)
+- **8: % From 52W High**: Distance below 52-week high (threshold: 25%)
 
 ### Alert Conditions for Screening
 
-- **All Periods Outperforming**: Positive outperformance in all four periods
-- **Strong Outperformance**: 13W > 5% AND 52W > 10% outperformance
-- **52W Outperf > 20%**: Annual outperformance exceeds 20%
+- **All 8 Conditions Met**: Full Trend Template pass (score = 8)
+- **7+ Conditions Met**: Near-qualifying stocks (score >= 7)
 
 ### Usage in TradingView Screener
 
@@ -33,10 +46,11 @@ Pine Script screener for identifying stocks outperforming the S&P 500 index.
 3. Select your watchlist or market
 4. Choose this indicator from the dropdown
 5. Set filters based on plot values or alert conditions:
-   - Filter by any outperformance column (e.g., "52W Outperf % > 10")
-   - Use alert conditions for pre-defined screening criteria
-6. Run the scan to find outperforming stocks
+   - Filter by "TT Score = 8" to find stocks passing all conditions
+   - Filter by "TT Score >= 7" to include near-qualifying stocks
+   - Sort by "% From 52W High" to find stocks closest to new highs
+6. Run the scan to find Stage 2 uptrend candidates
 
 ### Recommended Timeframe
 
-Use on **Weekly (W)** timeframe for best results when screening for medium to long-term outperformers.
+Use on **Daily (D)** timeframe as the conditions are based on daily moving averages (50, 150, 200-day SMA).

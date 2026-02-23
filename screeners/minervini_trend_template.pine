@@ -1,0 +1,59 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © hidapple
+
+//@version=6
+indicator("Minervini Trend Template Screener", shorttitle="Minervini TT", overlay=false)
+
+// Moving averages (fixed periods for screener compatibility)
+sma50 = ta.sma(close, 50)
+sma150 = ta.sma(close, 150)
+sma200 = ta.sma(close, 200)
+
+// 52-week high/low (252 trading days)
+week52_high = ta.highest(high, 252)
+week52_low = ta.lowest(low, 252)
+
+// Condition 1: Price > 150-day SMA
+cond1 = close > sma150
+
+// Condition 2: Price > 200-day SMA
+cond2 = close > sma200
+
+// Condition 3: 150-day SMA > 200-day SMA
+cond3 = sma150 > sma200
+
+// Condition 4: 200-day SMA trending up for at least 1 month (~20 trading days)
+cond4 = sma200 > sma200[20]
+
+// Condition 5: 50-day SMA > 150-day SMA AND 50-day SMA > 200-day SMA
+cond5 = sma50 > sma150 and sma50 > sma200
+
+// Condition 6: Price > 50-day SMA
+cond6 = close > sma50
+
+// Condition 7: Price is at least 25% above 52-week low
+pct_above_low = ((close - week52_low) / week52_low) * 100
+cond7 = pct_above_low >= 25
+
+// Condition 8: Price is within 25% of 52-week high
+pct_from_high = ((week52_high - close) / week52_high) * 100
+cond8 = pct_from_high <= 25
+
+// Count passing conditions
+score = (cond1 ? 1 : 0) + (cond2 ? 1 : 0) + (cond3 ? 1 : 0) + (cond4 ? 1 : 0) +
+        (cond5 ? 1 : 0) + (cond6 ? 1 : 0) + (cond7 ? 1 : 0) + (cond8 ? 1 : 0)
+
+// Plot values for screener columns
+plot(score, title="TT Score", color=score == 8 ? color.green : score >= 6 ? color.orange : color.red)
+plot(((close - sma150) / sma150) * 100, title="1: Price vs 150 SMA %")
+plot(((close - sma200) / sma200) * 100, title="2: Price vs 200 SMA %")
+plot(((sma150 - sma200) / sma200) * 100, title="3: 150 vs 200 SMA %")
+plot(((sma200 - sma200[20]) / sma200[20]) * 100, title="4: 200 SMA 1M Chg %")
+plot(((sma50 - sma150) / sma150) * 100, title="5: 50 vs 150 SMA %")
+plot(((close - sma50) / sma50) * 100, title="6: Price vs 50 SMA %")
+plot(pct_above_low, title="7: % Above 52W Low")
+plot(pct_from_high, title="8: % From 52W High")
+
+// Alert conditions for combined screening
+alertcondition(score == 8, title="All 8 Conditions Met")
+alertcondition(score >= 7, title="7+ Conditions Met")
