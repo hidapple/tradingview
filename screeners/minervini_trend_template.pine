@@ -40,8 +40,7 @@ pct_from_high = ((week52_high - close) / week52_high) * 100
 cond8 = pct_from_high <= 25
 
 // Count passing conditions
-score = (cond1 ? 1 : 0) + (cond2 ? 1 : 0) + (cond3 ? 1 : 0) + (cond4 ? 1 : 0) +
-        (cond5 ? 1 : 0) + (cond6 ? 1 : 0) + (cond7 ? 1 : 0) + (cond8 ? 1 : 0)
+score = (cond1 ? 1 : 0) + (cond2 ? 1 : 0) + (cond3 ? 1 : 0) + (cond4 ? 1 : 0) + (cond5 ? 1 : 0) + (cond6 ? 1 : 0) + (cond7 ? 1 : 0) + (cond8 ? 1 : 0)
 
 // Plot values for screener columns
 plot(score, title="TT Score", color=score == 8 ? color.green : score >= 6 ? color.orange : color.red)
