@@ -10,8 +10,24 @@ spy_close = request.security("SPY", timeframe.period, close)
 // Calculate relative strength ratio (stock / SPY)
 rs = close / spy_close
 
+// 52-week high detection (252 trading days)
+rs_52w_high = ta.highest(rs, 252)
+price_52w_high = ta.highest(close, 252)
+
+// Blue Dot: RS line at new 52-week high while price is NOT at new 52-week high
+rs_new_high = rs >= rs_52w_high
+price_not_new_high = close < price_52w_high
+blue_dot = rs_new_high and price_not_new_high
+
 // Color by slope: green = outperforming, red = underperforming
 rs_color = rs > rs[1] ? color.green : color.red
 
 // Plot relative strength line
 plot(rs, title="RS", color=rs_color, linewidth=2)
+
+// Plot blue dot on RS line when condition is met
+plotshape(blue_dot ? rs : na, title="RS Blue Dot", style=shape.circle, location=location.absolute, color=color.blue, size=size.tiny)
+
+// Plot triangle on RS line at new 52-week high (regardless of price)
+rs_new_high_only = rs_new_high and not blue_dot
+plotshape(rs_new_high_only ? rs : na, title="RS New High", style=shape.triangleup, location=location.absolute, color=color.orange, size=size.tiny)
