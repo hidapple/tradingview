@@ -1,0 +1,168 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © hidapple
+// Based on "RS Rating" by © Fred6724 (RS Rating percentile calculation via seed_fred6725_rs_rating)
+
+//@version=6
+indicator("RS Rating", shorttitle = "RS Rating", overlay = false, max_bars_back = 253)
+
+// Reference ticker for the RS Rating percentile calculation.
+// Must be SP:SPX because the seed data (market-wide RS score distribution) is computed against it.
+RATING_REF_TICKER = "SP:SPX"
+
+// Inputs
+// All inputs use display = display.none to keep the indicator status line clean
+lineTicker  = input.symbol("SP:SPX", "Comparative Symbol", tooltip = "Reference ticker used for the RS Line.", display = display.none)
+colorRS     = input.color(color.blue, "RS Line Color", display = display.none)
+showRating  = input.bool(true, "Show RS Rating Label", display = display.none)
+plotNewHigh = input.bool(true, "Plot RS New Highs", display = display.none)
+lookback    = input.int(252, "New High Look-back", minval = 1, maxval = 252, tooltip = "Look-back period for RS and price new high detection.", display = display.none)
+allowReplay = input.bool(false, "Use fixed values for replay mode", tooltip = "Use constant percentile thresholds instead of seed data. See SEED_FRED6725_RS_RATING:RSRATING ticker for the latest values.", display = display.none)
+first2      = input.float(195.93, "For 99 stocks", display = display.none)
+scnd2       = input.float(117.11, "For 90+ stocks", display = display.none)
+thrd2       = input.float(99.04, "For 70+ stocks", display = display.none)
+frth2       = input.float(91.66, "For 50+ stocks", display = display.none)
+ffth2       = input.float(80.96, "For 30+ stocks", display = display.none)
+sxth2       = input.float(53.64, "For 10+ stocks", display = display.none)
+svth2       = input.float(24.86, "For 1- stocks", display = display.none)
+
+// On weekly timeframe a 252-day look-back becomes 52 weeks
+newHighLookback = timeframe.isweekly and lookback == 252 ? 52 : lookback
+
+// RS Line: raw ratio of the symbol close to the comparative symbol close.
+// No scaling or offset is needed because the indicator runs in its own pane.
+comparativeClose = request.security(lineTicker, timeframe.period, close)
+rs = close / comparativeClose
+
+plot(rs, title = "RS Line", color = colorRS, linewidth = 2)
+
+// RS New High detection
+rsNewHigh    = rs >= ta.highest(rs, newHighLookback)
+priceNewHigh = high >= ta.highest(high, newHighLookback)
+
+// Blue Dot: RS line at new high while price is NOT at new high (RS leading price)
+blueDot = plotNewHigh and rsNewHigh and not priceNewHigh
+plotshape(blueDot ? rs : na, title = "RS New High Before Price", style = shape.circle, location = location.absolute, color = color.rgb(121, 213, 242), size = size.tiny)
+
+// Orange Triangle: RS line and price both at new highs
+rsNewHighWithPrice = plotNewHigh and rsNewHigh and priceNewHigh
+plotshape(rsNewHighWithPrice ? rs : na, title = "RS New High", style = shape.triangleup, location = location.absolute, color = color.orange, size = size.tiny)
+
+// RS Rating calculation
+// Performance of the ticker and the reference index over the last 1 to 4 quarters,
+// with the most recent quarter weighted double (IBD-style formula).
+// Use bar_index to shorten the look-back for recent IPOs and avoid na results.
+n63  = math.min(bar_index, 63)
+n126 = math.min(bar_index, 126)
+n189 = math.min(bar_index, 189)
+n252 = math.min(bar_index, 252)
+
+closeDa    = request.security(syminfo.tickerid, "D", close)
+refCloseDa = request.security(RATING_REF_TICKER, "D", close)
+
+perfTicker63  = closeDa / closeDa[n63]
+perfTicker126 = closeDa / closeDa[n126]
+perfTicker189 = closeDa / closeDa[n189]
+perfTicker252 = closeDa / closeDa[n252]
+
+perfRef63  = refCloseDa / refCloseDa[n63]
+perfRef126 = refCloseDa / refCloseDa[n126]
+perfRef189 = refCloseDa / refCloseDa[n189]
+perfRef252 = refCloseDa / refCloseDa[n252]
+
+rsStock = 0.4 * perfTicker63 + 0.2 * perfTicker126 + 0.2 * perfTicker189 + 0.2 * perfTicker252
+rsRef   = 0.4 * perfRef63 + 0.2 * perfRef126 + 0.2 * perfRef189 + 0.2 * perfRef252
+
+totalRsScore  = rsStock / rsRef * 100
+totalRsRating = -1.0
+
+// Market-wide RS score distribution published daily via Pine Seeds.
+// The feed carries 7 threshold values corresponding to percentiles 98, 89, 69, 49, 29, 9 and 1,
+// each repeated 5 days in a row so weekends and holidays do not drop data.
+curveRsPerf = request.seed("seed_fred6725_rs_rating", "RSRATING", close)
+
+// Number of bars since the last non-na seed value
+delta = nz(ta.barssince(not na(curveRsPerf)))
+
+// Store the first 7 distinct seed values (the percentile thresholds)
+var float[] thresholds = array.new_float(7)
+var int counter = 0
+
+float first = 0
+float scnd  = 0
+float thrd  = 0
+float frth  = 0
+float ffth  = 0
+float sxth  = 0
+float svth  = 0
+
+if not allowReplay
+    for i = delta to 34 + delta
+        closeValue = nz(curveRsPerf[i])
+        if not array.includes(thresholds, closeValue) and counter < 7 and closeValue != 0
+            array.set(thresholds, counter, closeValue)
+            counter += 1
+    first := array.get(thresholds, 0)
+    scnd  := array.get(thresholds, 1)
+    thrd  := array.get(thresholds, 2)
+    frth  := array.get(thresholds, 3)
+    ffth  := array.get(thresholds, 4)
+    sxth  := array.get(thresholds, 5)
+    svth  := array.get(thresholds, 6)
+else
+    first := first2
+    scnd  := scnd2
+    thrd  := thrd2
+    frth  := frth2
+    ffth  := ffth2
+    sxth  := sxth2
+    svth  := svth2
+
+// Map the RS score to a 1-99 percentile rating with a piecewise linear approximation
+// of the market-wide score distribution curve. The weight parameter is a manual
+// calibration factor for segments where the curve deviates from a straight line.
+f_attributePercentile(score, tallerPerf, smallerPerf, rangeUp, rangeDn, weight) =>
+    sum = score + (score - smallerPerf) * weight
+    if sum > tallerPerf - 1
+        sum := tallerPerf - 1
+    k1 = smallerPerf / rangeDn
+    k2 = (tallerPerf - 1) / rangeUp
+    k3 = (k1 - k2) / (tallerPerf - 1 - smallerPerf)
+    rating = sum / (k1 - k3 * (score - smallerPerf))
+    if rating > rangeUp
+        rating := rangeUp
+    if rating < rangeDn
+        rating := rangeDn
+    rating
+
+if totalRsScore >= first
+    totalRsRating := 99
+if totalRsScore <= svth
+    totalRsRating := 1
+if totalRsScore < first and totalRsScore >= scnd
+    totalRsRating := f_attributePercentile(totalRsScore, first, scnd, 98, 90, 0.33)
+if totalRsScore < scnd and totalRsScore >= thrd
+    totalRsRating := f_attributePercentile(totalRsScore, scnd, thrd, 89, 70, 2.1)
+if totalRsScore < thrd and totalRsScore >= frth
+    totalRsRating := f_attributePercentile(totalRsScore, thrd, frth, 69, 50, 0)
+if totalRsScore < frth and totalRsScore >= ffth
+    totalRsRating := f_attributePercentile(totalRsScore, frth, ffth, 49, 30, 0)
+if totalRsScore < ffth and totalRsScore >= sxth
+    totalRsRating := f_attributePercentile(totalRsScore, ffth, sxth, 29, 10, 0)
+if totalRsScore < sxth and totalRsScore >= svth
+    totalRsRating := f_attributePercentile(totalRsScore, sxth, svth, 9, 2, 0)
+
+// Invalidate the rating when any threshold is missing (e.g. replay mode without fixed values)
+for i = 0 to 6
+    if nz(array.get(thresholds, i)) == 0 and not allowReplay
+        totalRsRating := -1
+
+// Expose the rating in the data window without drawing it in the pane
+plot(totalRsRating, title = "RS Rating", display = display.data_window)
+
+// RS Rating label on the last bar.
+// The rating is only meaningful on the daily timeframe because the seed data is daily.
+var label ratingLabel = na
+if showRating and barstate.islast
+    label.delete(ratingLabel)
+    ratingText = timeframe.isdaily and totalRsRating != -1 ? str.tostring(totalRsRating, "#0") : "RS"
+    ratingLabel := label.new(bar_index, rs, text = ratingText, color = color.rgb(0, 0, 0, 100), size = size.large, textcolor = colorRS, style = label.style_label_down)

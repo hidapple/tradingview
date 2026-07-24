@@ -10,17 +10,69 @@ is_weekly = current_tf == "W" or current_tf == "1W"
 
 is_bullish_candle = close >= open
 
+// --- End-of-day volume projection (daily timeframe only) ---
+// Projected volume = today's cumulative volume / p(t), where p(t) is the
+// average fraction of a session's total volume traded by the same intraday
+// position over the last PROFILE_DAYS sessions. This bakes the U-shaped
+// intraday volume curve into the estimate instead of assuming a linear pace.
+LOWER_TF = "30"      // intraday slice size used to build the volume profile
+MAX_SLICES = 48      // covers a full 24h session at 30-minute slices
+PROFILE_DAYS = 30    // sessions averaged for the cumulative profile
+MIN_SESSIONS = 5     // minimum recorded sessions required before projecting
+MIN_FRACTION = 0.02  // floor on p(t) to avoid extreme projections at the open
+
+// Request the chart's own timeframe when it is already at or below LOWER_TF,
+// since security_lower_tf() errors on timeframes higher than the chart's.
+ltf = timeframe.in_seconds() > timeframe.in_seconds(LOWER_TF) ? LOWER_TF : timeframe.period
+vol_ltf = request.security_lower_tf(syminfo.tickerid, ltf, volume)
+
+// Rolling store of the last PROFILE_DAYS cumulative volume profiles.
+// Each row holds the cumulative volume fraction at each intraday slice.
+var matrix<float> profiles = matrix.new<float>(0, MAX_SLICES)
+
+if is_daily and barstate.isconfirmed and array.size(vol_ltf) > 0
+    float day_total = array.sum(vol_ltf)
+    if day_total > 0
+        row = array.new<float>(MAX_SLICES, na)
+        float cum = 0.0
+        for i = 0 to math.min(array.size(vol_ltf), MAX_SLICES) - 1
+            cum += nz(array.get(vol_ltf, i))
+            array.set(row, i, cum / day_total)
+        matrix.add_row(profiles, matrix.rows(profiles), row)
+        if matrix.rows(profiles) > PROFILE_DAYS
+            matrix.remove_row(profiles, 0)
+
+float projected_volume = na
+int slices_today = array.size(vol_ltf)
+if is_daily and barstate.islast and barstate.isrealtime and not barstate.isconfirmed and slices_today > 0 and slices_today <= MAX_SLICES
+    float frac_sum = 0.0
+    int frac_cnt = 0
+    if matrix.rows(profiles) > 0
+        for r = 0 to matrix.rows(profiles) - 1
+            float f = matrix.get(profiles, r, slices_today - 1)
+            if not na(f)
+                frac_sum += f
+                frac_cnt += 1
+    if frac_cnt >= MIN_SESSIONS
+        float avg_frac = math.max(frac_sum / frac_cnt, MIN_FRACTION)
+        projected_volume := volume / avg_frac
+
+// Classify the developing daily bar by where volume is likely to finish
+// rather than where it currently stands. Falls back to the raw volume on
+// historical bars and whenever no projection is available.
+float effective_volume = na(projected_volume) ? volume : projected_volume
+
 var color volume_color = na
 var float volume_ma = na
 
 if is_daily
     avg_vol_5d = ta.sma(volume[1], 5)
     volume_ma := ta.sma(volume, 50)  // 50-day MA for daily
-    if volume > avg_vol_5d * 2.0
+    if effective_volume > avg_vol_5d * 2.0
         volume_color := is_bullish_candle ? color.new(color.green, 20) : color.new(color.red, 20)
-    else if volume > avg_vol_5d * 1.4
+    else if effective_volume > avg_vol_5d * 1.4
         volume_color := is_bullish_candle ? color.new(color.green, 55) : color.new(color.red, 55)
-    else if volume < avg_vol_5d * 0.5
+    else if effective_volume < avg_vol_5d * 0.5
         volume_color := is_bullish_candle ? color.new(color.green, 80) : color.new(color.red, 80)
     else
         volume_color := color.new(color.gray, 60)
@@ -39,5 +91,7 @@ else
     volume_color := close >= open ? color.new(color.green, 40) : color.new(color.red, 40)
     volume_ma := na
 
+// Ghost bar first so the actual volume column draws on top of it.
+plot(projected_volume, style=plot.style_columns, color=color.new(color.gray, 70), title="Projected EOD Volume")
 plot(volume, style=plot.style_columns, color=volume_color, title="Volume")
 plot(volume_ma, color=color.rgb(255, 215, 0), linewidth=1, title="Volume MA")
