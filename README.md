@@ -7,6 +7,7 @@ A collection of technical analysis indicators and screeners written in Pine Scri
 - `indicators/` - Technical analysis indicators
   - `movings/` - Moving average indicators (SMA, etc.)
   - `relative_strength/` - Relative strength indicators
+  - `vcp/` - Volatility Contraction Pattern (VCP) detection indicators
   - `volumes/` - Volume-based indicators
 - `screeners/` - Market screening scripts
 

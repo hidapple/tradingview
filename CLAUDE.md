@@ -11,6 +11,7 @@ This is a TradingView Pine Script repository for technical analysis indicators a
 - `indicators/` - Contains all technical analysis indicators
   - `movings/` - Moving average indicators and related technical analysis scripts
   - `relative_strength/` - Relative strength indicators
+  - `vcp/` - Volatility Contraction Pattern (VCP) detection indicators
   - `volumes/` - Volume-based indicators
 - `screeners/` - Contains market screening scripts for filtering stocks/assets
 - Pine Script files use `.pine` extension and follow Pine Script v6 syntax

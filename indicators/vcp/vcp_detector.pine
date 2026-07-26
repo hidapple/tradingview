@@ -1,0 +1,196 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © hidapple
+
+//@version=6
+indicator("VCP Detector", shorttitle="VCP", overlay=true, max_lines_count=100, max_labels_count=100, max_boxes_count=100)
+
+// ---------- Inputs ----------
+pivot_left = input.int(5, "Pivot left bars", minval=1, group="Swing Detection")
+pivot_right = input.int(3, "Pivot right bars", minval=1, group="Swing Detection",
+     tooltip="Smaller values confirm swings sooner but pick up more noise")
+
+min_contractions = input.int(2, "Min contractions (T)", minval=2, group="VCP Structure")
+max_contractions = input.int(6, "Max contractions (T)", minval=2, group="VCP Structure")
+max_first_depth = input.float(35.0, "Max first contraction depth %", minval=1.0, group="VCP Structure")
+max_final_depth = input.float(10.0, "Max final contraction depth %", minval=0.5, group="VCP Structure")
+contraction_ratio = input.float(0.75, "Contraction ratio threshold", minval=0.1, maxval=1.0, step=0.05, group="VCP Structure",
+     tooltip="Each contraction must be no deeper than this fraction of the previous one")
+require_higher_lows = input.bool(true, "Require higher lows", group="VCP Structure",
+     tooltip="Each contraction low must be above the previous contraction low. Turn off to allow shakeouts")
+max_pattern_age = input.int(40, "Max bars since final swing low", minval=5, group="VCP Structure")
+
+dry_up_ratio = input.float(0.7, "Volume dry-up ratio", minval=0.1, maxval=1.0, step=0.05, group="Volume",
+     tooltip="5-day average volume must be below this fraction of the 50-day average volume")
+breakout_vol_mult = input.float(1.5, "Breakout volume multiplier", minval=1.0, step=0.1, group="Volume",
+     tooltip="Breakout bar volume must exceed the 50-day average volume times this multiplier")
+
+use_trend_filter = input.bool(true, "Require Minervini trend template", group="Trend Filter",
+     tooltip="Only detect VCP while price > 50 SMA > 150 SMA > 200 SMA and the 200 SMA is rising")
+
+show_t_labels = input.bool(true, "Show contraction labels", group="Display",
+     tooltip="Show plain text like 'T1 10.5%' below each contraction low")
+
+// ---------- Collect confirmed swing points ----------
+var pivot_bars = array.new_int()
+var pivot_prices = array.new_float()
+var pivot_is_high = array.new_bool()
+
+ph = ta.pivothigh(high, pivot_left, pivot_right)
+pl = ta.pivotlow(low, pivot_left, pivot_right)
+
+if not na(ph)
+    array.push(pivot_bars, bar_index - pivot_right)
+    array.push(pivot_prices, ph)
+    array.push(pivot_is_high, true)
+if not na(pl)
+    array.push(pivot_bars, bar_index - pivot_right)
+    array.push(pivot_prices, pl)
+    array.push(pivot_is_high, false)
+
+// Keep only the recent history needed for pattern analysis
+while array.size(pivot_bars) > 30
+    array.shift(pivot_bars)
+    array.shift(pivot_prices)
+    array.shift(pivot_is_high)
+
+// ---------- Build alternating high/low sequence ----------
+// Consecutive same-type pivots are merged, keeping the more extreme one
+zz_bars = array.new_int()
+zz_prices = array.new_float()
+zz_is_high = array.new_bool()
+
+if array.size(pivot_bars) > 0
+    for i = 0 to array.size(pivot_bars) - 1
+        b = array.get(pivot_bars, i)
+        p = array.get(pivot_prices, i)
+        is_h = array.get(pivot_is_high, i)
+        n = array.size(zz_prices)
+        if n == 0 or array.get(zz_is_high, n - 1) != is_h
+            array.push(zz_bars, b)
+            array.push(zz_prices, p)
+            array.push(zz_is_high, is_h)
+        else
+            prev = array.get(zz_prices, n - 1)
+            if (is_h and p > prev) or (not is_h and p < prev)
+                array.set(zz_bars, n - 1, b)
+                array.set(zz_prices, n - 1, p)
+
+// ---------- Measure contractions (swing high -> following swing low) ----------
+c_high_bars = array.new_int()
+c_high_prices = array.new_float()
+c_low_bars = array.new_int()
+c_low_prices = array.new_float()
+c_depths = array.new_float()
+
+if array.size(zz_prices) > 1
+    for i = 0 to array.size(zz_prices) - 2
+        if array.get(zz_is_high, i)
+            hp = array.get(zz_prices, i)
+            lp = array.get(zz_prices, i + 1)
+            array.push(c_high_bars, array.get(zz_bars, i))
+            array.push(c_high_prices, hp)
+            array.push(c_low_bars, array.get(zz_bars, i + 1))
+            array.push(c_low_prices, lp)
+            array.push(c_depths, (hp - lp) / hp * 100)
+
+// ---------- Find the contracting suffix (most recent contractions shrinking left to right) ----------
+// A breakout consumes the base: contractions that started before the last breakout never rejoin a sequence
+var int last_breakout_bar = na
+
+num_c = array.size(c_depths)
+int seq_len = 0
+if num_c > 0 and (na(last_breakout_bar) or array.get(c_high_bars, num_c - 1) > last_breakout_bar)
+    seq_len := 1
+    int idx = num_c - 1
+    bool extending = true
+    while extending and idx > 0 and seq_len < max_contractions
+        bool contracting = array.get(c_depths, idx) <= array.get(c_depths, idx - 1) * contraction_ratio
+        bool higher_low = not require_higher_lows or array.get(c_low_prices, idx) > array.get(c_low_prices, idx - 1)
+        bool same_base = na(last_breakout_bar) or array.get(c_high_bars, idx - 1) > last_breakout_bar
+        // Adjacent contractions must share price territory: a contraction floating
+        // entirely above the previous one's high belongs to a new structure
+        bool overlapping = array.get(c_low_prices, idx) < array.get(c_high_prices, idx - 1)
+        if contracting and higher_low and same_base and overlapping
+            seq_len += 1
+            idx -= 1
+        else
+            extending := false
+
+float pivot_price = na
+float final_low = na
+float first_depth = na
+float final_depth = na
+int final_low_bar = na
+
+if seq_len > 0
+    pivot_price := array.get(c_high_prices, num_c - 1)
+    final_low := array.get(c_low_prices, num_c - 1)
+    final_depth := array.get(c_depths, num_c - 1)
+    final_low_bar := array.get(c_low_bars, num_c - 1)
+    first_depth := array.get(c_depths, num_c - seq_len)
+
+// ---------- VCP conditions ----------
+structure_ok = seq_len >= min_contractions and first_depth <= max_first_depth and final_depth <= max_final_depth
+
+vol_sma50 = ta.sma(volume, 50)
+vol_sma5 = ta.sma(volume, 5)
+atr14 = ta.atr(14)
+vol_dry_up = vol_sma5 <= vol_sma50 * dry_up_ratio
+
+sma50 = ta.sma(close, 50)
+sma150 = ta.sma(close, 150)
+sma200 = ta.sma(close, 200)
+trend_ok = not use_trend_filter or (close > sma50 and sma50 > sma150 and sma150 > sma200 and sma200 > sma200[20])
+
+// Price must still sit inside the final contraction: below the pivot, above the final low
+in_base = num_c > 0 and close < pivot_price and close > final_low
+not_stale = num_c > 0 and bar_index - final_low_bar <= max_pattern_age
+
+vcp_active = structure_ok and vol_dry_up and trend_ok and in_base and not_stale
+
+// Breakout: price clears the pivot with volume expansion right after an active VCP
+breakout = vcp_active[1] and close > pivot_price and volume >= vol_sma50 * breakout_vol_mult
+
+// Any close above the pivot of a valid structure consumes the base, volume-confirmed or not
+if breakout or (structure_ok and close > pivot_price)
+    last_breakout_bar := bar_index
+
+// ---------- Plots ----------
+bgcolor(vcp_active ? color.new(color.orange, 85) : na, title="VCP Active")
+plotshape(breakout, title="VCP Breakout", style=shape.triangleup, location=location.belowbar, color=color.green, size=size.small, text="BO")
+
+// ---------- Draw the detected contraction structure (last bar only) ----------
+var vcp_lines = array.new_line()
+var vcp_labels = array.new_label()
+var vcp_boxes = array.new_box()
+
+if barstate.islast
+    for l in vcp_lines
+        line.delete(l)
+    array.clear(vcp_lines)
+    for lbl in vcp_labels
+        label.delete(lbl)
+    array.clear(vcp_labels)
+    for b in vcp_boxes
+        box.delete(b)
+    array.clear(vcp_boxes)
+
+    if structure_ok and in_base and not_stale
+        for i = num_c - seq_len to num_c - 1
+            t_num = i - (num_c - seq_len) + 1
+            hb = array.get(c_high_bars, i)
+            hp = array.get(c_high_prices, i)
+            lb = array.get(c_low_bars, i)
+            lp = array.get(c_low_prices, i)
+            // Translucent box spanning the contraction range (high to low)
+            array.push(vcp_boxes, box.new(hb, hp, lb, lp, border_color=na, bgcolor=color.new(color.blue, 80)))
+            // One label per contraction below the low: number and depth together
+            if show_t_labels
+                array.push(vcp_labels, label.new(lb, lp - atr14 * 0.5, "T" + str.tostring(t_num) + " " + str.tostring(array.get(c_depths, i), "#.#") + "%", style=label.style_none, textcolor=color.blue, size=size.small))
+        // Pivot (buy point) line extending to the right
+        array.push(vcp_lines, line.new(array.get(c_high_bars, num_c - 1), pivot_price, bar_index, pivot_price, color=color.green, style=line.style_dashed, extend=extend.right))
+        array.push(vcp_labels, label.new(bar_index + 3, pivot_price, "Pivot " + str.tostring(pivot_price, format.mintick), style=label.style_none, textcolor=color.green, size=size.small))
+
+// ---------- Alerts ----------
+alertcondition(vcp_active and not vcp_active[1], title="VCP Detected", message="VCP pattern detected")
+alertcondition(breakout, title="VCP Breakout", message="Price broke out above the VCP pivot with volume expansion")
