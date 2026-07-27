@@ -17,13 +17,13 @@ Overlay indicator that detects VCP bases: a series of price contractions that pr
 4. **Volume dry-up**: 5-day average volume <= 70% of 50-day average volume.
 5. **Trend filter** (optional, on by default): price > 50 SMA > 150 SMA > 200 SMA, with the 200 SMA rising vs 20 bars ago (simplified Minervini Trend Template).
 6. **Pattern validity**: price must still sit inside the final contraction (below the pivot, above the final low), and the final swing low must be within 40 bars.
-7. **Breakout consumes the base**: any close above the pivot of a valid structure consumes the base, whether or not the volume-confirmed breakout signal fires. Contractions that started at or before that bar are permanently excluded from future sequences. The T-count resets, and only a fresh base formed after the breakout can qualify as the next VCP.
+7. **Breakout consumes the base**: the base is consumed by a volume-confirmed breakout, or by a close more than 5% (configurable) above the pivot. Contractions that started at or before that bar are permanently excluded from future sequences: the T-count resets, and only a fresh base formed after the breakout can qualify as the next VCP. A brief poke above the pivot within the 5% tolerance is treated as a failed test of the highs — if price falls back, the pattern continues and the poke's swing high becomes the next contraction's start.
 
 ### Visual Characteristics
 
 - **Orange background**: VCP is currently active (all conditions met)
 - **Translucent blue boxes** (last bar only): for each contraction, a borderless box spanning from the high bar to the low bar vertically bounded by the swing high and swing low levels
-- **Blue text** (last bar only): plain text (no balloon) at each contraction low showing the contraction number and depth together, e.g. "T1 10.5%" (toggle via "Show contraction labels"). The pivot price is likewise shown as plain green text
+- **Blue text** (last bar only): plain text (no balloon) at each contraction low showing the contraction number and depth together, e.g. "T1(10.5%)" (toggle via "Show contraction labels"). The pivot price is likewise shown as plain green text
 - **Green dashed line**: the pivot (buy point) = high of the final contraction, extended to the right with a "Pivot" price label
 - **Green triangle with "BO"**: breakout bar — close crosses above the pivot with volume >= 1.5x the 50-day average, immediately following an active VCP
 

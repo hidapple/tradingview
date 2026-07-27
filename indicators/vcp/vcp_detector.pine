@@ -18,6 +18,8 @@ contraction_ratio = input.float(0.75, "Contraction ratio threshold", minval=0.1,
 require_higher_lows = input.bool(true, "Require higher lows", group="VCP Structure",
      tooltip="Each contraction low must be above the previous contraction low. Turn off to allow shakeouts")
 max_pattern_age = input.int(40, "Max bars since final swing low", minval=5, group="VCP Structure")
+pivot_clear_pct = input.float(5.0, "Base consumption threshold %", minval=0.0, step=0.5, group="VCP Structure",
+     tooltip="A close this far above the pivot consumes the base even without a volume-confirmed breakout. Pokes above the pivot within this range are tolerated as failed tests that may form the next contraction")
 
 dry_up_ratio = input.float(0.7, "Volume dry-up ratio", minval=0.1, maxval=1.0, step=0.05, group="Volume",
      tooltip="5-day average volume must be below this fraction of the 50-day average volume")
@@ -151,8 +153,10 @@ vcp_active = structure_ok and vol_dry_up and trend_ok and in_base and not_stale
 // Breakout: price clears the pivot with volume expansion right after an active VCP
 breakout = vcp_active[1] and close > pivot_price and volume >= vol_sma50 * breakout_vol_mult
 
-// Any close above the pivot of a valid structure consumes the base, volume-confirmed or not
-if breakout or (structure_ok and close > pivot_price)
+// The base is consumed by a volume-confirmed breakout, or by a close clearly beyond
+// the buy range above the pivot. A poke within the tolerance is treated as a failed
+// test of the highs that may become the next contraction
+if breakout or (structure_ok and close > pivot_price * (1 + pivot_clear_pct / 100))
     last_breakout_bar := bar_index
 
 // ---------- Plots ----------
@@ -186,7 +190,7 @@ if barstate.islast
             array.push(vcp_boxes, box.new(hb, hp, lb, lp, border_color=na, bgcolor=color.new(color.blue, 80)))
             // One label per contraction below the low: number and depth together
             if show_t_labels
-                array.push(vcp_labels, label.new(lb, lp - atr14 * 0.5, "T" + str.tostring(t_num) + " " + str.tostring(array.get(c_depths, i), "#.#") + "%", style=label.style_none, textcolor=color.blue, size=size.small))
+                array.push(vcp_labels, label.new(lb, lp - atr14 * 0.5, "T" + str.tostring(t_num) + "(" + str.tostring(array.get(c_depths, i), "#.#") + "%)", style=label.style_none, textcolor=color.blue, size=size.small))
         // Pivot (buy point) line extending to the right
         array.push(vcp_lines, line.new(array.get(c_high_bars, num_c - 1), pivot_price, bar_index, pivot_price, color=color.green, style=line.style_dashed, extend=extend.right))
         array.push(vcp_labels, label.new(bar_index + 3, pivot_price, "Pivot " + str.tostring(pivot_price, format.mintick), style=label.style_none, textcolor=color.green, size=size.small))
