@@ -15,8 +15,8 @@ max_first_depth = input.float(35.0, "Max first contraction depth %", minval=1.0,
 max_final_depth = input.float(10.0, "Max final contraction depth %", minval=0.5, group="VCP Structure")
 contraction_ratio = input.float(0.75, "Contraction ratio threshold", minval=0.1, maxval=1.0, step=0.05, group="VCP Structure",
      tooltip="Each contraction must be no deeper than this fraction of the previous one")
-require_higher_lows = input.bool(true, "Require higher lows", group="VCP Structure",
-     tooltip="Each contraction low must be above the previous contraction low. Turn off to allow shakeouts")
+require_higher_lows = input.bool(false, "Require higher lows", group="VCP Structure",
+     tooltip="Optional strictness: require each contraction low to be above the previous contraction low. Not part of the VCP definition (shakeouts are allowed), off by default")
 max_pattern_age = input.int(40, "Max bars since final swing low", minval=5, group="VCP Structure")
 pivot_clear_pct = input.float(5.0, "Base consumption threshold %", minval=0.0, step=0.5, group="VCP Structure",
      tooltip="A close this far above the pivot consumes the base even without a volume-confirmed breakout. Pokes above the pivot within this range are tolerated as failed tests that may form the next contraction")

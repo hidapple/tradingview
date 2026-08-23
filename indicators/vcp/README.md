@@ -10,7 +10,7 @@ Overlay indicator that detects VCP bases: a series of price contractions that pr
 
 1. **Swing detection**: Confirmed swing highs/lows via `ta.pivothigh()` / `ta.pivotlow()` (default: 5 left / 3 right bars). Consecutive same-type pivots are merged, keeping the more extreme one.
 2. **Contraction measurement**: Each swing high to the following swing low is one contraction (T). Depth is measured in % from the high.
-3. **Contraction sequence**: Starting from the most recent contraction and walking backward, each contraction must be no deeper than 75% (configurable) of the previous one, and each contraction low must be above the previous contraction low (higher lows, on by default; turn off to allow shakeouts). Adjacent contractions must also overlap in price (the later contraction's low must be below the earlier contraction's high) — a pullback formed well above the previous contraction belongs to a new structure and never chains onto the old base. The sequence qualifies when:
+3. **Contraction sequence**: Starting from the most recent contraction and walking backward, each contraction must be no deeper than 75% (configurable) of the previous one. Higher lows are NOT required by the VCP definition (shakeouts are allowed); an optional "Require higher lows" input (off by default) adds that strictness. Adjacent contractions must also overlap in price (the later contraction's low must be below the earlier contraction's high) — a pullback formed well above the previous contraction belongs to a new structure and never chains onto the old base. The sequence qualifies when:
    - At least 2 contractions (max 6 considered)
    - First contraction depth <= 35%
    - Final contraction depth <= 10%

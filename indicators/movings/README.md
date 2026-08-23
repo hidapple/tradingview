@@ -12,7 +12,8 @@
 - Blue: 50-period SMA (medium-term trend)
 - Red: 200-period SMA (long-term trend)
 
-### 52-week High/Low Labels
-- When a new 52-week high is made, the price is displayed in green above the candlestick
-- When a new 52-week low is made, the price is displayed in red below the candlestick
+### 52-week High/Low Levels
+- The current 52-week high is always shown as a thin dotted translucent green line, anchored at the bar that set the high and extending to the right of the latest bar, with the price as green text at the right end
+- The current 52-week low is shown the same way in red
+- Both levels update as the rolling window moves, so they always reflect the actual current 52-week extremes
 - Lookback period adjusts by timeframe: 52 bars (weekly), 12 bars (monthly), 252 bars (daily/other)

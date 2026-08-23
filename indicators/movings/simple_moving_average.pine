@@ -21,23 +21,28 @@ plot(isWeekly ? na : sma21, title="SMA 21", color=color.rgb(50, 205, 50), linewi
 plot(isWeekly ? na : sma50, title="SMA 50", color=color.rgb(255, 215, 0), linewidth=1)
 plot(isWeekly ? na : sma200, title="SMA 200", color=color.rgb(220, 20, 60), linewidth=1)
 
-// 52-week High/Low labels
+// 52-week High/Low levels
 lookback = isWeekly ? 52 : timeframe.ismonthly ? 12 : 252
 high52w = ta.highest(high, lookback)
 low52w = ta.lowest(low, lookback)
+highBarsAgo = ta.highestbars(high, lookback)
+lowBarsAgo = ta.lowestbars(low, lookback)
 
-isNew52wHigh = high == high52w and (na(high52w[1]) or high > high52w[1])
-isNew52wLow = low == low52w and (na(low52w[1]) or low < low52w[1])
-
+var line highLine = na
+var line lowLine = na
 var label highLabel = na
 var label lowLabel = na
-highOffset = ta.atr(14) * 0.3
-lowOffset = ta.atr(14) * 0.1
 
-if isNew52wHigh
+// Always show the current 52-week high/low: a thin dotted line anchored at the bar
+// that set the extreme, extending right, with the price text at the right end
+if barstate.islast
+    line.delete(highLine)
     label.delete(highLabel)
-    highLabel := label.new(bar_index, high + highOffset, str.tostring(high, format.mintick), style=label.style_none, textcolor=color.rgb(0, 155, 0), size=size.small)
-
-if isNew52wLow
+    line.delete(lowLine)
     label.delete(lowLabel)
-    lowLabel := label.new(bar_index, low - lowOffset, str.tostring(low, format.mintick), style=label.style_none, textcolor=color.rgb(255, 82, 82), size=size.small)
+    if not na(high52w)
+        highLine := line.new(bar_index + highBarsAgo, high52w, bar_index + 2, high52w, color=color.new(color.rgb(0, 155, 0), 40), style=line.style_dotted, width=1)
+        highLabel := label.new(bar_index + 6, high52w, str.tostring(high52w, format.mintick), style=label.style_none, textcolor=color.rgb(0, 155, 0), size=size.small)
+    if not na(low52w)
+        lowLine := line.new(bar_index + lowBarsAgo, low52w, bar_index + 2, low52w, color=color.new(color.rgb(255, 82, 82), 40), style=line.style_dotted, width=1)
+        lowLabel := label.new(bar_index + 6, low52w, str.tostring(low52w, format.mintick), style=label.style_none, textcolor=color.rgb(255, 82, 82), size=size.small)
