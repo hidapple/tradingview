@@ -54,3 +54,69 @@ Each condition is plotted as a numeric value (%) so you can sort and filter by a
 ### Recommended Timeframe
 
 Use on **Daily (D)** timeframe as the conditions are based on daily moving averages (50, 150, 200-day SMA).
+
+## `vcp_screener.pine`
+
+Pine Screener port of the [VCP Detector](../indicators/vcp/README.md) (`indicators/vcp/vcp_detector.pine`). Finds stocks currently sitting inside a Volatility Contraction Pattern and stocks that just broke out of one. Designed to be run against an index universe (S&P 500, Nasdaq 100, Russell 2000, ...) or a watchlist.
+
+The swing detection, contraction sequencing, base consumption and breakout rules are identical to the indicator. Differences from the indicator:
+
+- All parameters are fixed constants (see the top of the script) set to the indicator defaults, so every scan uses the same VCP definition; tune the results with column filters instead
+- The optional "Require higher lows" check is not included (it is off by default in the indicator)
+- Drawing objects (boxes, labels, pivot line) are removed
+- The trend template is not a hard gate; it is exposed as a separate filter and a score column so it can be combined freely
+- Only the last 500 bars are available to the screener, which is enough for the 252-bar 52-week range and the 200-day SMA
+
+### Fixed Parameters
+
+| Parameter | Value | Meaning |
+|---|---|---|
+| Pivot left / right | 5 / 3 | Bars required on each side to confirm a swing high/low |
+| Min / max contractions | 2 / 6 | Number of contractions (T) accepted in a sequence |
+| Max first contraction depth | 35% | Depth limit for T1 |
+| Max final contraction depth | 10% | Depth limit for the last contraction |
+| Contraction ratio | 0.75 | Each contraction must be no deeper than 75% of the previous one |
+| Max pattern age | 40 bars | Bars allowed since the final swing low |
+| Base consumption threshold | 5% | A close this far above the pivot ends the base |
+| Volume dry-up ratio | 0.7 | 5-day average volume must be below 70% of the 50-day average |
+| Breakout volume multiplier | 1.5 | Breakout bar volume must exceed 1.5x the 50-day average |
+| Recent breakout window | 5 bars | Window used by the "Last 5 Bars" filter |
+
+### Screener Columns (Plots)
+
+Structure columns describe the live contracting sequence (price still inside the final contraction and the pattern not stale) **before** the depth and volume rules are applied, so you can tune the thresholds with column filters. They are empty (`T Count` = 0) when no live sequence exists or the base was consumed by a breakout.
+
+- **T Count**: Number of contractions in the current sequence. Filter with `T Count >= 3` to require three or more contractions; 0 means no live sequence
+- **T1 Depth %**: Depth of the first contraction
+- **Final T Depth %**: Depth of the most recent contraction
+- **% Below Pivot**: Distance from the close up to the pivot (buy point). Small values mean price is close to the buy point
+- **Base Length (bars)**: Bars from the first contraction high to the current bar
+- **Bars Since Final Low**: Bars since the most recent swing low
+- **Vol Dry-up Ratio (5d/50d)**: 5-day average volume divided by 50-day average volume (lower = drier)
+- **Vol Ratio (Today/50d)**: Current bar volume divided by 50-day average volume (breakout confirmation)
+- **TT Score**: Minervini Trend Template score (0-8), same definition as `minervini_trend_template.pine`
+- **Bars Since Breakout**: Bars since the last volume-confirmed VCP breakout (empty if none in the loaded history)
+
+### Alert Conditions for Screening
+
+- **VCP Active**: At least 2 contractions, T1 <= 35%, final T <= 10%, price inside the final contraction, pattern not stale, and 5-day volume dried up below 70% of the 50-day average
+- **VCP Active (Trend OK)**: VCP Active plus price > 50 SMA > 150 SMA > 200 SMA with a rising 200 SMA (the indicator's default trend filter)
+- **VCP Breakout Today**: Close above the pivot with volume >= 1.5x the 50-day average on the bar right after an active VCP
+- **VCP Breakout (Last 5 Bars)**: A VCP breakout occurred within the last 5 bars
+
+### Usage in TradingView Screener
+
+1. Add this indicator to your chart and save it
+2. Open the Screener tab, choose Pine Screener and select an index (e.g. S&P 500) or a watchlist as the symbol source
+3. Choose this indicator from the dropdown and set the timeframe to Daily
+4. Typical filter combinations:
+   - `VCP Active (Trend OK) = True` and `T Count >= 3` to find tight multi-contraction bases in a Stage 2 uptrend
+   - `VCP Active = True` and `% Below Pivot <= 3` to find bases about to test the buy point
+   - `VCP Breakout (Last 5 Bars) = True` and `TT Score >= 7` to review recent breakouts
+   - Sort by `Final T Depth %` ascending to rank the tightest final contractions
+5. Run the scan
+
+### Notes
+
+- Use the **Daily (D)** timeframe. The volume averages and the 40-bar pattern age are calibrated for daily bars
+- During market hours the last bar is still forming, so `Vol Ratio (Today/50d)` and the breakout filters reflect partial volume until the close

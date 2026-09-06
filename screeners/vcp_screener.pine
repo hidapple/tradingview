@@ -1,0 +1,200 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © hidapple
+
+//@version=6
+indicator("VCP Screener", shorttitle="VCP Scr", overlay=false)
+
+// Screener port of indicators/vcp/vcp_detector.pine.
+// Parameters are fixed constants (the indicator defaults) so every scan uses the
+// same definition; tune the results with column filters instead. Drawings are
+// removed because the Pine Screener does not display them, and only the last
+// 500 bars are available for calculation.
+
+// ---------- Fixed parameters ----------
+// Swing detection
+PIVOT_LEFT = 5
+PIVOT_RIGHT = 3
+
+// VCP structure
+MIN_CONTRACTIONS = 2       // minimum number of contractions (T) for a valid VCP
+MAX_CONTRACTIONS = 6       // maximum number of contractions counted in one sequence
+MAX_FIRST_DEPTH = 35.0     // maximum depth % of the first contraction
+MAX_FINAL_DEPTH = 10.0     // maximum depth % of the final contraction
+CONTRACTION_RATIO = 0.75   // each contraction must be no deeper than the previous one times this ratio
+MAX_PATTERN_AGE = 40       // maximum bars since the final swing low
+PIVOT_CLEAR_PCT = 5.0      // a close this far above the pivot consumes the base without a volume-confirmed breakout
+
+// Volume
+DRY_UP_RATIO = 0.7         // 5-day average volume must be below this fraction of the 50-day average
+BREAKOUT_VOL_MULT = 1.5    // breakout bar volume must exceed the 50-day average times this multiplier
+
+// Window for the "recent breakout" filter
+RECENT_BREAKOUT_BARS = 5
+
+// ---------- Collect confirmed swing points ----------
+var pivot_bars = array.new_int()
+var pivot_prices = array.new_float()
+var pivot_is_high = array.new_bool()
+
+ph = ta.pivothigh(high, PIVOT_LEFT, PIVOT_RIGHT)
+pl = ta.pivotlow(low, PIVOT_LEFT, PIVOT_RIGHT)
+
+if not na(ph)
+    array.push(pivot_bars, bar_index - PIVOT_RIGHT)
+    array.push(pivot_prices, ph)
+    array.push(pivot_is_high, true)
+if not na(pl)
+    array.push(pivot_bars, bar_index - PIVOT_RIGHT)
+    array.push(pivot_prices, pl)
+    array.push(pivot_is_high, false)
+
+// Keep only the recent history needed for pattern analysis
+while array.size(pivot_bars) > 30
+    array.shift(pivot_bars)
+    array.shift(pivot_prices)
+    array.shift(pivot_is_high)
+
+// ---------- Build alternating high/low sequence ----------
+// Consecutive same-type pivots are merged, keeping the more extreme one
+zz_bars = array.new_int()
+zz_prices = array.new_float()
+zz_is_high = array.new_bool()
+
+if array.size(pivot_bars) > 0
+    for i = 0 to array.size(pivot_bars) - 1
+        b = array.get(pivot_bars, i)
+        p = array.get(pivot_prices, i)
+        is_h = array.get(pivot_is_high, i)
+        n = array.size(zz_prices)
+        if n == 0 or array.get(zz_is_high, n - 1) != is_h
+            array.push(zz_bars, b)
+            array.push(zz_prices, p)
+            array.push(zz_is_high, is_h)
+        else
+            prev = array.get(zz_prices, n - 1)
+            if (is_h and p > prev) or (not is_h and p < prev)
+                array.set(zz_bars, n - 1, b)
+                array.set(zz_prices, n - 1, p)
+
+// ---------- Measure contractions (swing high -> following swing low) ----------
+c_high_bars = array.new_int()
+c_high_prices = array.new_float()
+c_low_bars = array.new_int()
+c_low_prices = array.new_float()
+c_depths = array.new_float()
+
+if array.size(zz_prices) > 1
+    for i = 0 to array.size(zz_prices) - 2
+        if array.get(zz_is_high, i)
+            hp = array.get(zz_prices, i)
+            lp = array.get(zz_prices, i + 1)
+            array.push(c_high_bars, array.get(zz_bars, i))
+            array.push(c_high_prices, hp)
+            array.push(c_low_bars, array.get(zz_bars, i + 1))
+            array.push(c_low_prices, lp)
+            array.push(c_depths, (hp - lp) / hp * 100)
+
+// ---------- Find the contracting suffix (most recent contractions shrinking left to right) ----------
+// A breakout consumes the base: contractions that started before the last breakout never rejoin a sequence
+var int last_breakout_bar = na
+
+num_c = array.size(c_depths)
+int seq_len = 0
+if num_c > 0 and (na(last_breakout_bar) or array.get(c_high_bars, num_c - 1) > last_breakout_bar)
+    seq_len := 1
+    int idx = num_c - 1
+    bool extending = true
+    while extending and idx > 0 and seq_len < MAX_CONTRACTIONS
+        bool contracting = array.get(c_depths, idx) <= array.get(c_depths, idx - 1) * CONTRACTION_RATIO
+        bool same_base = na(last_breakout_bar) or array.get(c_high_bars, idx - 1) > last_breakout_bar
+        // Adjacent contractions must share price territory: a contraction floating
+        // entirely above the previous one's high belongs to a new structure
+        bool overlapping = array.get(c_low_prices, idx) < array.get(c_high_prices, idx - 1)
+        if contracting and same_base and overlapping
+            seq_len += 1
+            idx -= 1
+        else
+            extending := false
+
+float pivot_price = na
+float final_low = na
+float first_depth = na
+float final_depth = na
+int final_low_bar = na
+int base_start_bar = na
+
+if seq_len > 0
+    pivot_price := array.get(c_high_prices, num_c - 1)
+    final_low := array.get(c_low_prices, num_c - 1)
+    final_depth := array.get(c_depths, num_c - 1)
+    final_low_bar := array.get(c_low_bars, num_c - 1)
+    first_depth := array.get(c_depths, num_c - seq_len)
+    base_start_bar := array.get(c_high_bars, num_c - seq_len)
+
+// ---------- Trend template (Minervini) ----------
+sma50 = ta.sma(close, 50)
+sma150 = ta.sma(close, 150)
+sma200 = ta.sma(close, 200)
+week52_high = ta.highest(high, 252)
+week52_low = ta.lowest(low, 252)
+
+tt1 = close > sma150
+tt2 = close > sma200
+tt3 = sma150 > sma200
+tt4 = sma200 > sma200[20]
+tt5 = sma50 > sma150 and sma50 > sma200
+tt6 = close > sma50
+tt7 = (close - week52_low) / week52_low * 100 >= 25
+tt8 = (week52_high - close) / week52_high * 100 <= 25
+tt_score = (tt1 ? 1 : 0) + (tt2 ? 1 : 0) + (tt3 ? 1 : 0) + (tt4 ? 1 : 0) + (tt5 ? 1 : 0) + (tt6 ? 1 : 0) + (tt7 ? 1 : 0) + (tt8 ? 1 : 0)
+
+// Same trend filter as the VCP Detector indicator
+trend_ok = close > sma50 and sma50 > sma150 and sma150 > sma200 and sma200 > sma200[20]
+
+// ---------- VCP conditions ----------
+vol_sma50 = ta.sma(volume, 50)
+vol_sma5 = ta.sma(volume, 5)
+dry_up_ratio = vol_sma5 / vol_sma50
+vol_dry_up = dry_up_ratio <= DRY_UP_RATIO
+
+// Price must still sit inside the final contraction: below the pivot, above the final low
+in_base = num_c > 0 and close < pivot_price and close > final_low
+not_stale = num_c > 0 and bar_index - final_low_bar <= MAX_PATTERN_AGE
+
+// A live contracting sequence: the raw structure before depth and volume rules are applied.
+// Columns describe this sequence so thresholds can be tuned with screener filters.
+has_sequence = seq_len > 0 and in_base and not_stale
+
+structure_ok = seq_len >= MIN_CONTRACTIONS and first_depth <= MAX_FIRST_DEPTH and final_depth <= MAX_FINAL_DEPTH
+vcp_active = structure_ok and in_base and not_stale and vol_dry_up
+vcp_trend = vcp_active and trend_ok
+
+// Breakout: price clears the pivot with volume expansion right after an active VCP
+breakout = vcp_active[1] and close > pivot_price and volume >= vol_sma50 * BREAKOUT_VOL_MULT
+
+// The base is consumed by a volume-confirmed breakout, or by a close clearly beyond
+// the buy range above the pivot. A poke within the tolerance is treated as a failed
+// test of the highs that may become the next contraction
+if breakout or (structure_ok and close > pivot_price * (1 + PIVOT_CLEAR_PCT / 100))
+    last_breakout_bar := bar_index
+
+bars_since_breakout = ta.barssince(breakout)
+recent_breakout = bars_since_breakout < RECENT_BREAKOUT_BARS
+
+// ---------- Screener columns ----------
+plot(has_sequence ? seq_len : 0, title="T Count")
+plot(has_sequence ? first_depth : na, title="T1 Depth %")
+plot(has_sequence ? final_depth : na, title="Final T Depth %")
+plot(has_sequence ? (pivot_price - close) / pivot_price * 100 : na, title="% Below Pivot")
+plot(has_sequence ? bar_index - base_start_bar : na, title="Base Length (bars)")
+plot(has_sequence ? bar_index - final_low_bar : na, title="Bars Since Final Low")
+plot(dry_up_ratio, title="Vol Dry-up Ratio (5d/50d)")
+plot(volume / vol_sma50, title="Vol Ratio (Today/50d)")
+plot(tt_score, title="TT Score")
+plot(bars_since_breakout, title="Bars Since Breakout")
+
+// ---------- Screener filters ----------
+alertcondition(vcp_active, title="VCP Active")
+alertcondition(vcp_trend, title="VCP Active (Trend OK)")
+alertcondition(breakout, title="VCP Breakout Today")
+alertcondition(recent_breakout, title="VCP Breakout (Last 5 Bars)")

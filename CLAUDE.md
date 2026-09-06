@@ -54,18 +54,21 @@ Pine Script indicators are tested and deployed directly within the TradingView p
 Pine Script screeners are different from regular indicators and have specific requirements:
 
 ### Key Differences from Regular Indicators
-- **No input() functions allowed** - Use fixed values only
-- **Must have plot() or alertcondition()** - At least one is required
+- **Inputs are supported, with exceptions** - `input.*()` works except `input.symbol()`, `input.timeframe()` and `input.time()`, which fall back to their default values. Keep defaults meaningful because the screener always starts from them
+- **Must have plot() or alertcondition()** - At least one plot-family call (`plot()`, `plotshape()`, `plotchar()`, `plotarrow()`, `plotbar()`, `plotcandle()`, `hline()`) or `alertcondition()` is required
 - **Maximum 5 request.* calls** - Limited external data requests
-- **Works on watchlists** - Scans multiple symbols at once, not just single charts
+- **Only the last 500 bars are available** - Calculations run on the most recent 500 bars of the selected timeframe (about 2 years on Daily, about 10 years on Weekly). Look-backs and warm-up periods must fit inside this window
+- **Supported timeframes** - 1, 5, 15, 30, 60, 120, 240 minutes, 1D, 1W and 1M
+- **Drawings are not displayed** - `line`, `label`, `box` and `table` objects are ignored, so any calculation logic must not depend on them
+- **Works on watchlists and indices** - Scans a watchlist or a major index (S&P 500, Nasdaq 100, Russell 2000, etc., up to a few thousand symbols) at once; one symbol source and one indicator per scan
 
 ### Screener Structure Pattern
 ```pine
 //@version=6
 indicator("Screener Name", overlay=false)  // Usually overlay=false for screeners
 
-// Fixed parameters (no inputs)
-period = 20
+// Parameters: inputs are allowed, fixed constants are fine for stable thresholds
+period = input.int(20, "Period")
 
 // Calculation logic
 value = ta.sma(close, period)
