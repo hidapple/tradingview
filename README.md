@@ -5,6 +5,7 @@ A collection of technical analysis indicators and screeners written in Pine Scri
 ## Directory Structure
 
 - `indicators/` - Technical analysis indicators
+  - `fundamentals/` - Fundamentals table (EPS, revenue, ROE, listing date)
   - `movings/` - Moving average indicators (SMA, etc.)
   - `relative_strength/` - Relative strength indicators
   - `vcp/` - Volatility Contraction Pattern (VCP) detection indicators

@@ -1,0 +1,287 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © hidapple
+
+//@version=6
+indicator("Fundamentals Table", shorttitle="Funda", overlay=true)
+
+// ---------- Inputs ----------
+years = input.int(5, "Fiscal years to show", minval=1, maxval=10, group="Display",
+     tooltip="Rows in the table. The current fiscal year counts as one of them once it has a reported quarter")
+position_opt = input.string("Bottom left", "Table position", group="Display",
+     options=["Top left", "Top center", "Top right", "Middle left", "Middle center", "Middle right", "Bottom left", "Bottom center", "Bottom right"])
+text_size_opt = input.string("Small", "Text size", options=["Tiny", "Small", "Normal", "Large"], group="Display")
+bg_transp = input.int(20, "Background transparency", minval=0, maxval=100, group="Display")
+
+show_eps = input.bool(true, "EPS", group="Items", inline="items")
+show_rev = input.bool(true, "Revenue", group="Items", inline="items")
+show_roe = input.bool(true, "ROE", group="Items", inline="items")
+show_listed = input.bool(true, "Listing date", group="Items", inline="items",
+     tooltip="First available bar of the symbol on TradingView. Matches the IPO date for recent listings; older symbols show where TradingView's price history starts")
+
+// ---------- Constants ----------
+// Metrics are indexed 0..NUM_METRICS-1 everywhere: in the collected data, the year rows
+// and the rendered blocks. The kind selects the number format and the YoY rule.
+NUM_METRICS = 3
+var METRIC_NAMES = array.from("EPS", "Revenue", "ROE")
+var METRIC_KINDS = array.from("num", "big", "pct")
+var metric_shown = array.from(show_eps, show_rev, show_roe)
+
+// Each year row holds SLOTS values per metric: Q1..Q4 then the annual total
+SLOTS = 5
+TOTAL_SLOT = 4
+var SLOT_NAMES = array.from("Q1", "Q2", "Q3", "Q4", "Total")
+
+// EPS and revenue growth is highlighted only from this YoY percentage up
+STRONG_GROWTH_PCT = 25.0
+DAY_MS = 86400000
+
+// ---------- Data ----------
+// Quarterly and annual values as reported. Each series holds the latest reported value
+// on every bar and steps to a new value at each fiscal period boundary.
+eps_fq = request.financial(syminfo.tickerid, "EARNINGS_PER_SHARE", "FQ", ignore_invalid_symbol=true)
+rev_fq = request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FQ", ignore_invalid_symbol=true)
+roe_fq = request.financial(syminfo.tickerid, "RETURN_ON_EQUITY", "FQ", ignore_invalid_symbol=true)
+eps_fy = request.financial(syminfo.tickerid, "EARNINGS_PER_SHARE", "FY", ignore_invalid_symbol=true)
+rev_fy = request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FY", ignore_invalid_symbol=true)
+roe_fy = request.financial(syminfo.tickerid, "RETURN_ON_EQUITY", "FY", ignore_invalid_symbol=true)
+
+// Time of the first available bar on the daily and monthly feeds. Monthly history
+// reaches back further; daily gives the exact day when it covers the listing.
+first_bar_d = int(request.security(syminfo.tickerid, "D", ta.valuewhen(barstate.isfirst, time, 0), ignore_invalid_symbol=true))
+first_bar_m = int(request.security(syminfo.tickerid, "M", ta.valuewhen(barstate.isfirst, time, 0), ignore_invalid_symbol=true))
+
+// ---------- Collect one entry per fiscal period ----------
+// A series "steps" when it moves to a different non-na value. A value already present
+// on the very first chart bar belongs to an unknown period, so it is not counted.
+stepped(float v) =>
+    not na(v) and (na(v[1]) ? not barstate.isfirst : v != v[1])
+
+// Revenue defines the period boundaries; EPS takes over while revenue is unavailable
+boundary(float rev, float eps) =>
+    rev_stepped = stepped(rev)
+    eps_stepped = stepped(eps)
+    rev_stepped or (na(rev) and eps_stepped)
+
+// Append the current bar as a new period (one column per metric), dropping the oldest beyond cap
+record_period(array<int> times, matrix<float> vals, array<float> bar_vals, int cap) =>
+    array.push(times, time)
+    matrix.add_row(vals, matrix.rows(vals), bar_vals)
+    if array.size(times) > cap
+        array.shift(times)
+        matrix.remove_row(vals, 0)
+
+// One extra completed year is kept so the oldest displayed year still has a YoY base
+max_years = years + 1
+max_quarters = (max_years + 2) * 4
+
+var q_times = array.new_int()
+var q_vals = matrix.new<float>(0, NUM_METRICS)
+var y_times = array.new_int()
+var y_vals = matrix.new<float>(0, NUM_METRICS)
+
+if boundary(rev_fq, eps_fq)
+    record_period(q_times, q_vals, array.from(eps_fq, rev_fq, roe_fq), max_quarters)
+if boundary(rev_fy, eps_fy)
+    record_period(y_times, y_vals, array.from(eps_fy, rev_fy, roe_fy), max_years)
+
+// ---------- Display settings ----------
+table_pos = switch position_opt
+    "Top left" => position.top_left
+    "Top center" => position.top_center
+    "Top right" => position.top_right
+    "Middle left" => position.middle_left
+    "Middle center" => position.middle_center
+    "Middle right" => position.middle_right
+    "Bottom center" => position.bottom_center
+    "Bottom right" => position.bottom_right
+    => position.bottom_left
+
+tsize = switch text_size_opt
+    "Tiny" => size.tiny
+    "Normal" => size.normal
+    "Large" => size.large
+    => size.small
+
+fg = chart.fg_color
+dim = color.new(chart.fg_color, 60)
+hdr_bg = color.new(chart.fg_color, 85)
+color no_bg = na
+
+// ---------- Date helpers ----------
+months_between(int t_from, int t_to) =>
+    (year(t_to) - year(t_from)) * 12 + month(t_to) - month(t_from)
+
+// Year in which a fiscal period ended. Values step on the first bar after the period
+// ends, so stepping back a few days lands inside the period's closing month.
+fy_year(int t) =>
+    year(t - 10 * DAY_MS)
+
+fmt_ym(int t) =>
+    str.tostring(year(t)) + "/" + str.tostring(month(t), "00")
+
+fmt_ymd(int t) =>
+    fmt_ym(t) + "/" + str.tostring(dayofmonth(t), "00")
+
+elapsed_label(int t) =>
+    months = months_between(t, timenow)
+    str.tostring(int(months / 12)) + "y " + str.tostring(months % 12) + "m"
+
+// First available bar: the exact day when the daily feed reaches the first monthly bar,
+// otherwise the month from the monthly feed
+listed_label() =>
+    same_month = not na(first_bar_d) and not na(first_bar_m) and months_between(first_bar_d, first_bar_m) == 0
+    t = same_month ? first_bar_d : first_bar_m
+    na(t) ? "n/a" : (same_month ? fmt_ymd(t) : fmt_ym(t)) + " (" + elapsed_label(t) + ")"
+
+// ---------- Value formatting ----------
+fmt_big(float v) =>
+    a = math.abs(v)
+    switch
+        a >= 1e12 => str.tostring(v / 1e12, "0.##") + "T"
+        a >= 1e9 => str.tostring(v / 1e9, "0.##") + "B"
+        a >= 1e6 => str.tostring(v / 1e6, "0.##") + "M"
+        a >= 1e3 => str.tostring(v / 1e3, "0.##") + "K"
+        => str.tostring(v, "0.##")
+
+fmt_value(float v, string kind) =>
+    switch
+        na(v) => "n/a"
+        kind == "big" => fmt_big(v)
+        kind == "pct" => str.tostring(v, "0.0") + "%"
+        => str.tostring(v, "0.00")
+
+// Change vs the same period of the previous fiscal year: percent for EPS and revenue
+// (against the absolute base so a loss shrinking toward profit reads positive), and
+// percentage points for ROE since it is already a ratio
+yoy_change(float cur, float prev, string kind) =>
+    switch
+        na(cur) or na(prev) => float(na)
+        kind == "pct" => cur - prev
+        prev == 0 => float(na)
+        => (cur - prev) / math.abs(prev) * 100
+
+fmt_change(float g, string kind) =>
+    (g >= 0 ? "+" : "") + str.tostring(g, "0.0") + (kind == "pct" ? "pt" : "%")
+
+// Green from STRONG_GROWTH_PCT up (any positive change for ROE), red when negative,
+// normal text color otherwise
+growth_color(float g, string kind) =>
+    strong = kind == "pct" ? g > 0 : g >= STRONG_GROWTH_PCT
+    na(g) ? fg : g < 0 ? color.red : strong ? color.green : fg
+
+// ---------- Build year rows ----------
+// Each row is one fiscal year; metric m occupies columns slot_col(m, 0..SLOTS-1)
+slot_col(int m, int slot) =>
+    m * SLOTS + slot
+
+// Q4 ends with the fiscal year, Q3 about three months earlier, and so on. Rounding
+// tolerates boundaries that land a few days into the next month.
+quarter_slot(int months_to_end) =>
+    3 - math.round(months_to_end / 3.0)
+
+add_year_row(matrix<float> rows, array<int> labels, array<bool> partial, int year_label, bool is_partial) =>
+    matrix.add_row(rows, matrix.rows(rows), array.new_float(NUM_METRICS * SLOTS, na))
+    array.push(labels, year_label)
+    array.push(partial, is_partial)
+    matrix.rows(rows) - 1
+
+// Copy one period's metric values into a slot of a year row; out-of-range slots are ignored
+set_slot(matrix<float> rows, int r, int slot, array<float> vals) =>
+    if slot >= 0 and slot < SLOTS
+        for m = 0 to NUM_METRICS - 1
+            matrix.set(rows, r, slot_col(m, slot), array.get(vals, m))
+
+build_rows() =>
+    labels = array.new_int()
+    partial = array.new_bool()
+    rows = matrix.new<float>(0, NUM_METRICS * SLOTS)
+    ny = array.size(y_times)
+    nq = array.size(q_times)
+    // Completed fiscal years, oldest first
+    if ny > 0
+        for i = 0 to ny - 1
+            tfy = array.get(y_times, i)
+            r = add_year_row(rows, labels, partial, fy_year(tfy), false)
+            set_slot(rows, r, TOTAL_SLOT, matrix.row(y_vals, i))
+            if nq > 0
+                for j = 0 to nq - 1
+                    d = months_between(array.get(q_times, j), tfy)
+                    if d >= 0 and d <= 10
+                        set_slot(rows, r, quarter_slot(d), matrix.row(q_vals, j))
+    // Current fiscal year: quarters reported after the last completed year
+    if nq > 0
+        last_tq = array.get(q_times, nq - 1)
+        if ny > 0
+            last_tfy = array.get(y_times, ny - 1)
+            if last_tq > last_tfy
+                r = add_year_row(rows, labels, partial, fy_year(last_tfy) + 1, true)
+                for j = 0 to nq - 1
+                    tq = array.get(q_times, j)
+                    if tq > last_tfy
+                        set_slot(rows, r, quarter_slot(12 - months_between(last_tfy, tq)), matrix.row(q_vals, j))
+        else
+            // No annual data at all: show the latest quarters in reporting order
+            r = add_year_row(rows, labels, partial, fy_year(last_tq), true)
+            k = math.min(nq, 4)
+            for j = 0 to k - 1
+                set_slot(rows, r, j, matrix.row(q_vals, nq - k + j))
+    [labels, partial, rows]
+
+// ---------- Table rendering ----------
+cell(table t, int c, int r, string txt, color col, string halign, color bg) =>
+    table.cell(t, c, r, txt, text_color=col, text_size=tsize, text_halign=halign, bgcolor=bg)
+
+// One block per metric: a header row (name, Q1..Q4, Total) followed by one row per year
+// from first_row on. Each cell shows the value and, when the same period of the previous
+// year is known, the YoY change in parentheses. Returns the next free table row index.
+render_block(table t, int row0, int m, matrix<float> rows, array<int> labels, array<bool> partial, int first_row) =>
+    kind = array.get(METRIC_KINDS, m)
+    cell(t, 0, row0, array.get(METRIC_NAMES, m), fg, text.align_left, hdr_bg)
+    for s = 0 to SLOTS - 1
+        cell(t, s + 1, row0, array.get(SLOT_NAMES, s), fg, text.align_right, hdr_bg)
+    n = array.size(labels)
+    r = row0 + 1
+    if n > first_row
+        for i = first_row to n - 1
+            cell(t, 0, r, str.tostring(array.get(labels, i)), fg, text.align_left, no_bg)
+            for s = 0 to SLOTS - 1
+                v = matrix.get(rows, i, slot_col(m, s))
+                float prev = na
+                if i >= 1
+                    prev := matrix.get(rows, i - 1, slot_col(m, s))
+                g = yoy_change(v, prev, kind)
+                // Blank cells for periods of the current year that are not reported yet
+                string txt = na(v) ? (array.get(partial, i) ? "" : "n/a") : fmt_value(v, kind)
+                if not na(g)
+                    txt += " (" + fmt_change(g, kind) + ")"
+                cell(t, s + 1, r, txt, growth_color(g, kind), text.align_right, no_bg)
+            r += 1
+    r
+
+// ---------- Draw ----------
+var table tbl = na
+
+if barstate.islast
+    [labels, partial, rows] = build_rows()
+    // Only the last `years` rows are displayed, the current-year row included when present;
+    // the extra oldest year is kept as the YoY base
+    first_row = math.max(0, array.size(labels) - years)
+    rows_shown = array.size(labels) - first_row
+    total_rows = show_listed ? 1 : 0
+    for m = 0 to NUM_METRICS - 1
+        if array.get(metric_shown, m)
+            total_rows += 1 + rows_shown
+
+    // Rebuild from scratch so the row layout always follows the data
+    if not na(tbl)
+        table.delete(tbl)
+    if total_rows > 0
+        tbl := table.new(table_pos, SLOTS + 1, total_rows, bgcolor=color.new(chart.bg_color, bg_transp), frame_color=dim, frame_width=1, border_color=dim, border_width=1)
+        row = 0
+        for m = 0 to NUM_METRICS - 1
+            if array.get(metric_shown, m)
+                row := render_block(tbl, row, m, rows, labels, partial, first_row)
+        if show_listed
+            cell(tbl, 0, row, "Listed", fg, text.align_left, hdr_bg)
+            cell(tbl, 1, row, listed_label(), fg, text.align_left, no_bg)
+            table.merge_cells(tbl, 1, row, SLOTS, row)
