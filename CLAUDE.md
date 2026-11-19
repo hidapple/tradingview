@@ -12,6 +12,7 @@ This is a TradingView Pine Script repository for technical analysis indicators a
   - `fundamentals/` - Fundamentals table (EPS, revenue, ROE, listing date)
   - `movings/` - Moving average indicators and related technical analysis scripts
   - `relative_strength/` - Relative strength indicators
+  - `stage_analysis/` - Weinstein stage analysis (Stage 1-4) indicators
   - `vcp/` - Volatility Contraction Pattern (VCP) detection indicators
   - `volumes/` - Volume-based indicators
 - `screeners/` - Contains market screening scripts for filtering stocks/assets

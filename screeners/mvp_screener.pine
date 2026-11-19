@@ -1,0 +1,39 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © hidapple
+
+//@version=6
+indicator("MVP Screener", shorttitle="MVP", overlay=false)
+
+// Fixed parameters (David Ryan's MVP definition)
+LOOKBACK = 15          // Evaluation window in bars
+MIN_UP_DAYS = 12       // M: minimum up days within the window
+BASE_VOL_LEN = 50      // V: baseline volume average length (measured before the window)
+MIN_VOL_INCREASE = 25  // V: minimum volume increase % vs baseline
+MIN_PRICE_GAIN = 20    // P: minimum price gain % over the window
+
+// M: Momentum - number of up closes within the window
+up_days = math.sum(close > close[1] ? 1 : 0, LOOKBACK)
+
+// V: Volume - window average volume vs the 50-day average ending right before the window
+base_vol = ta.sma(volume, BASE_VOL_LEN)[LOOKBACK]
+vol_increase = (ta.sma(volume, LOOKBACK) / base_vol - 1) * 100
+
+// P: Price - gain from the close right before the window
+price_gain = (close / close[LOOKBACK] - 1) * 100
+
+cond_m = up_days >= MIN_UP_DAYS
+cond_v = vol_increase >= MIN_VOL_INCREASE
+cond_p = price_gain >= MIN_PRICE_GAIN
+is_mvp = cond_m and cond_v and cond_p
+
+// Plot values for screener columns
+plot(is_mvp ? 1 : 0, title="MVP", color=is_mvp ? color.green : color.gray)
+plot(up_days, title="M: Up Days (15)")
+plot(vol_increase, title="V: Volume Increase %")
+plot(price_gain, title="P: 15D Gain %")
+
+// Alert conditions for screening
+alertcondition(is_mvp, title="MVP")
+alertcondition(cond_m, title="M: 12+ Up Days")
+alertcondition(cond_v, title="V: Volume +25%")
+alertcondition(cond_p, title="P: Price +20%")

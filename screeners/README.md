@@ -120,3 +120,48 @@ Structure columns describe the live contracting sequence (price still inside the
 
 - Use the **Daily (D)** timeframe. The volume averages and the 40-bar pattern age are calibrated for daily bars
 - During market hours the last bar is still forming, so `Vol Ratio (Today/50d)` and the breakout filters reflect partial volume until the close
+
+## `mvp_screener.pine`
+
+Pine Screener for David Ryan's MVP indicator. Finds stocks showing strong accumulation over the last 15 trading days: persistent up closes (Momentum), rising volume (Volume) and a sharp price gain (Price).
+
+### The 3 Conditions
+
+| Condition | Rule |
+|---|---|
+| **M** (Momentum) | At least 12 of the last 15 bars closed higher than the previous close |
+| **V** (Volume) | The 15-day average volume is at least 25% above the 50-day average volume measured right before the 15-day window |
+| **P** (Price) | The close is at least 20% above the close 15 bars ago (the close right before the window) |
+
+The volume baseline is `ta.sma(volume, 50)[15]`, so it covers the 50 bars before the 15-day window and is not inflated by the window itself.
+
+### Screener Columns (Plots)
+
+- **MVP**: 1 when all three conditions are met, otherwise 0. Green=1, Gray=0
+- **M: Up Days (15)**: Number of up closes in the last 15 bars (threshold: 12)
+- **V: Volume Increase %**: 15-day average volume vs the prior 50-day average, in % (threshold: 25)
+- **P: 15D Gain %**: Price change over the last 15 bars, in % (threshold: 20)
+
+### Alert Conditions for Screening
+
+- **MVP**: All three conditions met
+- **M: 12+ Up Days**: Momentum condition only
+- **V: Volume +25%**: Volume condition only
+- **P: Price +20%**: Price condition only
+
+### Usage in TradingView Screener
+
+1. Add this indicator to your chart and save it
+2. Open the Screener tab, choose Pine Screener and select an index or a watchlist as the symbol source
+3. Choose this indicator from the dropdown and set the timeframe to Daily
+4. Typical filter combinations:
+   - `MVP = 1` to find stocks meeting all three conditions
+   - `M: Up Days (15) >= 12` and `V: Volume Increase % >= 25` to find accumulation that has not yet produced a 20% gain
+   - Sort by `P: 15D Gain %` descending to rank the strongest movers
+5. Run the scan
+
+### Notes
+
+- Use the **Daily (D)** timeframe. The 15-bar window and the 50-day volume baseline are calibrated for daily bars
+- The script needs 66 bars of history (50 + 15 + 1), well within the screener's 500-bar limit
+- During market hours the last bar is still forming, so the volume and up-day counts reflect a partial day until the close

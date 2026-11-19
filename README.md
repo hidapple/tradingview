@@ -8,6 +8,7 @@ A collection of technical analysis indicators and screeners written in Pine Scri
   - `fundamentals/` - Fundamentals table (EPS, revenue, ROE, listing date)
   - `movings/` - Moving average indicators (SMA, etc.)
   - `relative_strength/` - Relative strength indicators
+  - `stage_analysis/` - Weinstein stage analysis (Stage 1-4) indicators
   - `vcp/` - Volatility Contraction Pattern (VCP) detection indicators
   - `volumes/` - Volume-based indicators
 - `screeners/` - Market screening scripts
